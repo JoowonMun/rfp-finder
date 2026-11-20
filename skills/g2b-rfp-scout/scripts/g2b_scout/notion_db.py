@@ -181,6 +181,13 @@ class NotionClient:
                 return keys
             body = {"page_size": 100, "start_cursor": data["next_cursor"]}
 
+    def has_key(self, database_id: str, key: str) -> bool:
+        body = {"page_size": 1, "filter": {"property": "공고번호", "rich_text": {"equals": key}}}
+        return bool(self._request("POST", f"/databases/{database_id}/query", json=body).get("results"))
+
+    def get_database(self, database_id: str) -> dict:
+        return self._request("GET", f"/databases/{database_id}")
+
     def upload_file(self, path: Path, max_mb: int) -> str | None:
         path = Path(path)
         try:

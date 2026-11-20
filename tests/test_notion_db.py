@@ -195,3 +195,11 @@ def test_retry_on_429(monkeypatch):
     ])
     assert NotionClient("tok", session=s).existing_keys("db1") == set()
     assert len(s.calls) == 2
+
+
+def test_has_key_uses_filter():
+    s = FakeSession([Resp({"results": [_row("B1")], "has_more": False}), Resp({"results": [], "has_more": False})])
+    c = NotionClient("tok", session=s)
+    assert c.has_key("db1", "B1") is True
+    assert s.calls[0][2]["json"]["filter"] == {"property": "공고번호", "rich_text": {"equals": "B1"}}
+    assert c.has_key("db1", "B2") is False
