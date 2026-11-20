@@ -1,0 +1,28 @@
+# g2b-rfp-scout 설정 예시
+# 이 파일을 %USERPROFILE%\.g2b-rfp-scout\config.yaml 로 복사해 팀에 맞게 고치세요.
+# (첫 실행 시 스킬이 질문을 통해 자동으로 만들어 주기도 합니다.)
+
+team:
+  name: 우리팀
+  capabilities: |
+    여기에 팀이 잘하는 일을 자유롭게 적으세요. Claude가 적합도를 판단하는 핵심 자료입니다.
+    예) AI 전환(AX) 전략 컨설팅, 생성형 AI 도입 ISP/ISMP, AI 거버넌스 수립,
+        업무 프로세스 AI 적용 진단, PoC 기획·관리
+  past_projects: |
+    (선택) 대표 수행 실적. 참가 자격(실적 요건) 판단에 도움이 됩니다.
+
+filters:
+  include_keywords: [AI, 인공지능, 생성형, AX, 디지털전환, ISP, ISMP, 데이터, LLM]
+  exclude_keywords: [유지보수, 유지관리, 구매, 임차, 물품, 공사]
+  budget_min_krw: 50000000       # 비워두면 하한 없음
+  budget_max_krw: 3000000000     # 비워두면 상한 없음
+  min_days_to_deadline: 5        # 본공고에만 적용
+  include_pre_spec: true         # 사전규격 포함 여부
+
+collect:
+  lookback_days: 3               # 정기 실행 주기보다 약간 길게
+  max_per_run: 15                # 한 번에 분석할 공고 수 상한
+
+notion:
+  database_id: ""                # scout.py setup-notion 이 채워 줍니다
+  max_upload_mb: 5               # 노션 무료 요금제 파일당 한도
