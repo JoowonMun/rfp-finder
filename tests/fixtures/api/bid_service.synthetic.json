@@ -1,0 +1,50 @@
+{
+  "_comment": "SYNTHETIC placeholder - replace with real response when bid service key is approved",
+  "response": {
+    "header": {
+      "resultCode": "00",
+      "resultMsg": "정상"
+    },
+    "body": {
+      "items": [
+        {
+          "bidNtceNo": "R26BK00012345",
+          "bidNtceOrd": "000",
+          "bidNtceNm": "2027년 생성형 AI 행정혁신 ISP 수립 용역",
+          "ntceInsttNm": "○○시청",
+          "dminsttNm": "○○시 정보통신과",
+          "asignBdgtAmt": "420000000",
+          "presmptPrce": "381818182",
+          "bidNtceDt": "2026-11-19 10:00:00",
+          "bidClseDt": "2027-01-15 10:00:00",
+          "srvceDivNm": "일반용역",
+          "ntceKindNm": "등록공고",
+          "bidNtceDtlUrl": "https://www.g2b.go.kr/link/PNPE027_01/single/?bidPbancNo=R26BK00012345&bidPbancOrd=000",
+          "ntceSpecDocUrl1": "https://www.g2b.go.kr/pn/pnp/pnpe/UntyAtchFile/downloadFile.do?bidPbancNo=R26BK00012345&bidPbancOrd=000&fileType=&fileSeq=1",
+          "ntceSpecFileNm1": "제안요청서.hwpx",
+          "ntceSpecDocUrl2": "",
+          "ntceSpecFileNm2": "",
+          "ntceSpecDocUrl3": "",
+          "ntceSpecFileNm3": "",
+          "ntceSpecDocUrl4": "",
+          "ntceSpecFileNm4": "",
+          "ntceSpecDocUrl5": "",
+          "ntceSpecFileNm5": "",
+          "ntceSpecDocUrl6": "",
+          "ntceSpecFileNm6": "",
+          "ntceSpecDocUrl7": "",
+          "ntceSpecFileNm7": "",
+          "ntceSpecDocUrl8": "",
+          "ntceSpecFileNm8": "",
+          "ntceSpecDocUrl9": "",
+          "ntceSpecFileNm9": "",
+          "ntceSpecDocUrl10": "",
+          "ntceSpecFileNm10": ""
+        }
+      ],
+      "numOfRows": 10,
+      "pageNo": 1,
+      "totalCount": 1
+    }
+  }
+}

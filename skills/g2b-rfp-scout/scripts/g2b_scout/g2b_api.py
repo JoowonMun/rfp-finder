@@ -1,0 +1,151 @@
+"""조달청 공공데이터포털 OpenAPI 클라이언트. 필드 이름은 docs/api-notes.md 참고."""
+from __future__ import annotations
+
+from datetime import date, datetime
+
+import requests
+
+from .models import Attachment, Notice
+
+BID_URL = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc"
+PRESPEC_URL = "https://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService/getPublicPrcureThngInfoServc"
+PAGE_SIZE = 100
+TIMEOUT = 30
+
+
+class G2BApiError(Exception):
+    pass
+
+
+def parse_items(payload: dict) -> list[dict]:
+    body = (payload.get("response") or {}).get("body") or {}
+    items = body.get("items")
+    if not items:
+        return []
+    if isinstance(items, dict):
+        items = items.get("item", items)
+    if isinstance(items, dict):
+        return [items]
+    return list(items)
+
+
+def parse_budget(value) -> int | None:
+    if value is None:
+        return None
+    s = str(value).replace(",", "").strip()
+    if not s:
+        return None
+    try:
+        n = int(float(s))
+    except ValueError:
+        return None
+    return n or None
+
+
+def _dt(value) -> datetime | None:
+    s = (value or "").strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y%m%d%H%M%S", "%Y%m%d%H%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def parse_bid(item: dict) -> Notice:
+    no = str(item.get("bidNtceNo", "")).strip()
+    ord_ = str(item.get("bidNtceOrd", "")).strip() or "000"
+    atts = []
+    for i in range(1, 11):
+        url = (item.get(f"ntceSpecDocUrl{i}") or "").strip()
+        if url:
+            name = (item.get(f"ntceSpecFileNm{i}") or "").strip() or f"첨부{i}"
+            atts.append(Attachment(name=name, url=url))
+    return Notice(
+        kind="bid",
+        key=f"{no}-{ord_}",
+        bid_no=no,
+        bid_ord=ord_,
+        title=(item.get("bidNtceNm") or "").strip(),
+        agency=(item.get("ntceInsttNm") or item.get("dminsttNm") or "").strip(),
+        budget_krw=parse_budget(item.get("asignBdgtAmt")) or parse_budget(item.get("presmptPrce")),
+        deadline=_dt(item.get("bidClseDt")),
+        posted_at=_dt(item.get("bidNtceDt")),
+        category=(item.get("srvceDivNm") or item.get("ntceKindNm") or "").strip(),
+        detail_url=(item.get("bidNtceDtlUrl") or item.get("bidNtceUrl") or "").strip(),
+        attachments=atts,
+    )
+
+
+def parse_prespec(item: dict) -> Notice:
+    no = str(item.get("bfSpecRgstNo", "")).strip()
+    atts = []
+    for i in range(1, 6):
+        url = (item.get(f"specDocFileUrl{i}") or "").strip()
+        if url:
+            # 파일명은 응답에 없음 → 다운로드 시 Content-Disposition으로 갱신
+            atts.append(Attachment(name=f"규격서{i}", url=url))
+    return Notice(
+        kind="prespec",
+        key=f"PS-{no}",
+        bid_no=no,
+        bid_ord="",
+        title=(item.get("prdctClsfcNoNm") or "").strip(),
+        agency=(item.get("orderInsttNm") or item.get("rlDminsttNm") or "").strip(),
+        budget_krw=parse_budget(item.get("asignBdgtAmt")),
+        deadline=_dt(item.get("opninRgstClseDt")),
+        posted_at=_dt(item.get("rcptDt") or item.get("rgstDt")),
+        category=(item.get("bsnsDivNm") or "").strip(),
+        detail_url="",
+        attachments=atts,
+    )
+
+
+def _check(resp, payload: dict) -> None:
+    if "OpenAPI_ServiceResponse" in payload:
+        h = payload["OpenAPI_ServiceResponse"].get("cmmMsgHeader", {})
+        raise G2BApiError(
+            f"조달청 API 오류 {h.get('returnReasonCode')}: {h.get('returnAuthMsg')} ({h.get('errMsg')}), HTTP {resp.status_code}"
+        )
+    header = (payload.get("response") or {}).get("header") or {}
+    code = header.get("resultCode")
+    if code != "00":
+        raise G2BApiError(f"조달청 API 오류 {code}: {header.get('resultMsg')}, HTTP {resp.status_code}")
+
+
+def _fetch_all(url: str, parser, service_key: str, start: date, end: date, session) -> list[Notice]:
+    out: list[Notice] = []
+    page = 1
+    while True:
+        params = {
+            "serviceKey": service_key,
+            "pageNo": page,
+            "numOfRows": PAGE_SIZE,
+            "type": "json",
+            "inqryDiv": 1,
+            "inqryBgnDt": start.strftime("%Y%m%d") + "0000",
+            "inqryEndDt": end.strftime("%Y%m%d") + "2359",
+        }
+        try:
+            resp = session.get(url, params=params, timeout=TIMEOUT)
+        except requests.RequestException as e:
+            raise G2BApiError(f"조달청 API 요청 실패: {type(e).__name__}") from None
+        try:
+            payload = resp.json()
+        except ValueError:
+            raise G2BApiError(f"조달청 API 응답이 JSON이 아님 (HTTP {resp.status_code})") from None
+        _check(resp, payload)
+        items = parse_items(payload)
+        out.extend(parser(i) for i in items)
+        total = int(((payload.get("response") or {}).get("body") or {}).get("totalCount") or 0)
+        if not items or page * PAGE_SIZE >= total:
+            return out
+        page += 1
+
+
+def fetch_bid_notices(service_key: str, start: date, end: date, session=requests) -> list[Notice]:
+    return _fetch_all(BID_URL, parse_bid, service_key, start, end, session)
+
+
+def fetch_prespecs(service_key: str, start: date, end: date, session=requests) -> list[Notice]:
+    return _fetch_all(PRESPEC_URL, parse_prespec, service_key, start, end, session)
