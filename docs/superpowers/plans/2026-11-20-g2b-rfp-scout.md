@@ -14,7 +14,7 @@
 
 - Python 3.10+, Windows 11 우선 (경로는 `pathlib`, 콘솔/파일 인코딩은 UTF-8 명시).
 - 데이터 출처는 공공데이터포털 OpenAPI만. 나라장터 화면 스크래핑 금지.
-- 비밀(`DATA_GO_KR_SERVICE_KEY`, `NOTION_TOKEN`)은 `%USERPROFILE%\.g2b-rfp-scout\.env`에만. 저장소·로그·노션 어디에도 출력 금지.
+- 비밀(`DATA_GO_KR_SERVICE_KEY`, `NOTION_TOKEN`)은 `.env`에만: 개발 중엔 저장소 루트 `.env`(gitignore), 배포 사용자는 `%USERPROFILE%\.g2b-rfp-scout\.env`. git 커밋·로그·노션 어디에도 출력 금지.
 - 사용자 설정은 `%USERPROFILE%\.g2b-rfp-scout\config.yaml` (환경변수 `G2B_SCOUT_HOME`으로 홈 폴더 재정의 가능 — 테스트용).
 - 공개 저장소: 팀 고유 정보(실제 config, 팀 역량 서술, DB ID) 커밋 금지. `config.example.yaml`만.
 - 적합도 1~3 → 노션 `★`, `★★`, `★★★`. fit==1이면 상태 `자동제외`, 아니면 `검토전`.
@@ -79,7 +79,7 @@ README.md  LICENSE
 **Files:**
 - Create: `pyproject.toml`, `requirements.txt`, `tools/spike_api.py`, `tests/fixtures/api/` (응답 샘플), `docs/api-notes.md`
 
-**Prerequisite (사용자):** 공공데이터포털에서 "조달청_나라장터 입찰공고정보서비스", "조달청_나라장터 사전규격정보서비스" 활용신청 후 서비스키를 `%USERPROFILE%\.g2b-rfp-scout\.env`의 `DATA_GO_KR_SERVICE_KEY`에 저장. 키가 없으면 사용자에게 요청하고 대기.
+**Prerequisite (사용자):** 공공데이터포털에서 "조달청_나라장터 입찰공고정보서비스", "조달청_나라장터 사전규격정보서비스" 활용신청 후 서비스키를 저장소 루트 `.env`의 `DATA_GO_KR_SERVICE_KEY`에 저장. 키가 없으면 사용자에게 요청하고 대기.
 
 - [ ] **Step 1:** `requirements.txt`(requests, PyYAML, python-dotenv, olefile, pdfplumber; dev: pytest), `pyproject.toml`(`[tool.pytest.ini_options] pythonpath = ["skills/g2b-rfp-scout/scripts"]`, `testpaths = ["tests"]`) 작성, `python -m venv .venv` 후 설치.
 - [ ] **Step 2:** `tools/spike_api.py` 작성 — `.env`에서 키를 읽어 아래 후보 엔드포인트를 차례로 `type=json`, 최근 3일, `numOfRows=10`으로 호출하고 첫 성공 응답을 `tests/fixtures/api/<name>.json`에 저장. 후보(data.go.kr 상세 페이지에서 최신 경로 우선 확인):
@@ -107,7 +107,7 @@ git commit -m "chore: scaffold and record g2b API spike results"
 **Interfaces:**
 - Produces:
   - `paths.home() -> Path` (`G2B_SCOUT_HOME` 또는 `~/.g2b-rfp-scout`), `paths.new_run_dir() -> Path` (`home()/runs/YYYYMMDD-HHMMSS`, 생성)
-  - `config.load_config(path: Path | None = None) -> Config`; `config.load_secrets() -> Secrets` (없는 키는 `ConfigError`로 어떤 키가 없는지 명시)
+  - `config.load_config(path: Path | None = None) -> Config`; `config.load_secrets() -> Secrets` (없는 키는 `ConfigError`로 어떤 키가 없는지 명시). 비밀 탐색 순서: 프로세스 환경변수 → 현재 작업 폴더의 `.env` → `home()/.env`. 먼저 찾은 값 사용. (개발 중엔 저장소 루트 `.env`(gitignore됨), 배포 사용자는 홈 폴더)
   - `Config` 필드: `team_name: str, capabilities: str, past_projects: str, include_keywords: list[str], exclude_keywords: list[str], budget_min_krw: int|None, budget_max_krw: int|None, min_days_to_deadline: int=5, include_pre_spec: bool=True, lookback_days: int=3, max_per_run: int=15, notion_database_id: str, max_upload_mb: int=5`
   - `models.Attachment(name: str, url: str)`
   - `models.Notice(kind: Literal["bid","prespec"], key: str, bid_no: str, bid_ord: str, title: str, agency: str, budget_krw: int|None, deadline: datetime|None, posted_at: datetime|None, category: str, detail_url: str, attachments: list[Attachment])` + `to_dict()/from_dict()` (JSON 왕복)
