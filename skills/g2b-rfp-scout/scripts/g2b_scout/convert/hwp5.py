@@ -25,22 +25,23 @@ def _records(data: bytes):
 
 
 def _para_text(payload: bytes) -> str:
-    out = []
+    units = bytearray()  # 일반 문자의 UTF-16LE 코드 유닛 (서로게이트 쌍 보존)
     i, n = 0, len(payload) // 2
     while i < n:
-        c = int.from_bytes(payload[2 * i : 2 * i + 2], "little")
+        raw = payload[2 * i : 2 * i + 2]
+        c = int.from_bytes(raw, "little")
         if c >= 32:
-            out.append(chr(c))
+            units += raw
             i += 1
         elif c in _SINGLE:
             if c == 10:
-                out.append("\n")
+                units += "\n".encode("utf-16-le")
             i += 1
         else:
             if c == 9:
-                out.append("\t")
+                units += "\t".encode("utf-16-le")
             i += 8  # 인라인/확장 제어문자는 8 wchar
-    return "".join(out)
+    return units.decode("utf-16-le", errors="replace")
 
 
 def extract(path: Path) -> str:

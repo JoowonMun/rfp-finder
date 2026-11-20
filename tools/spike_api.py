@@ -36,9 +36,9 @@ def mask(text: str, key: str) -> str:
 
 
 def main() -> int:
-    key = os.environ.get("DATA_GO_KR_SERVICE_KEY") or dotenv_values(ROOT / ".env").get(
-        "DATA_GO_KR_SERVICE_KEY", ""
-    )
+    env = dotenv_values(ROOT / ".env")
+    key = os.environ.get("DATA_GO_KR_SERVICE_KEY") or env.get("DATA_GO_KR_SERVICE_KEY", "")
+    bid_key = os.environ.get("DATA_GO_KR_BID_SERVICE_KEY") or env.get("DATA_GO_KR_BID_SERVICE_KEY") or key
     if not key or "붙여넣기" in key:
         print("DATA_GO_KR_SERVICE_KEY 가 .env에 없습니다.")
         return 2
@@ -57,13 +57,14 @@ def main() -> int:
     ok_all = True
     for name, urls in CANDIDATES.items():
         saved = False
+        svc_key = bid_key if name == "bid_service" else key
         for url in urls:
             try:
-                r = requests.get(url, params=params, timeout=30)
+                r = requests.get(url, params={**params, "serviceKey": svc_key}, timeout=30)
             except requests.RequestException as e:
                 print(f"[{name}] {url} -> 요청 실패: {type(e).__name__}")
                 continue
-            body = mask(r.text, key)
+            body = mask(mask(r.text, key), bid_key)
             print(f"[{name}] {url} -> HTTP {r.status_code}, {body[:200]!r}")
             try:
                 data = r.json()

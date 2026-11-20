@@ -55,6 +55,7 @@ class DocResult:
     ok: bool
     rfp_path: Path | None = None
     rfp_name: str | None = None
+    rfp_url: str | None = None
     excerpt_path: Path | None = None
     error: str | None = None
 
@@ -63,6 +64,7 @@ class DocResult:
             "ok": self.ok,
             "rfp_path": str(self.rfp_path) if self.rfp_path else None,
             "rfp_name": self.rfp_name,
+            "rfp_url": self.rfp_url,
             "excerpt_path": str(self.excerpt_path) if self.excerpt_path else None,
             "error": self.error,
         }
@@ -73,6 +75,7 @@ class DocResult:
             ok=d["ok"],
             rfp_path=Path(d["rfp_path"]) if d.get("rfp_path") else None,
             rfp_name=d.get("rfp_name"),
+            rfp_url=d.get("rfp_url"),
             excerpt_path=Path(d["excerpt_path"]) if d.get("excerpt_path") else None,
             error=d.get("error"),
         )

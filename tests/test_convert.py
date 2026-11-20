@@ -114,3 +114,13 @@ def test_pick_rfp_order():
     names = ["붙임1_보안서약서.hwp", "제안요청서_최종.hwp", "과업지시서.pdf"]
     assert pick_rfp(names) == ["제안요청서_최종.hwp", "과업지시서.pdf", "붙임1_보안서약서.hwp"]
     assert pick_rfp(["규격서.hwp", "과업내용서.hwp", "기타.pdf"]) == ["과업내용서.hwp", "규격서.hwp", "기타.pdf"]
+
+
+def test_hwp5_para_text_surrogate_pair():
+    from g2b_scout.convert.hwp5 import _para_text
+    payload = "가😀나".encode("utf-16-le") + (13).to_bytes(2, "little")
+    assert _para_text(payload) == "가😀나"
+    lone = (0xD83D).to_bytes(2, "little") + "다".encode("utf-16-le")
+    out = _para_text(lone)
+    out.encode("utf-8")  # 인코딩 가능해야 함
+    assert out.endswith("다")
