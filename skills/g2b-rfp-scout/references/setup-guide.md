@@ -39,8 +39,6 @@ pip install -r "<플러그인 폴더>\requirements.txt"
 ```
 DATA_GO_KR_SERVICE_KEY=여기에_Decoding_키
 NOTION_TOKEN=여기에_노션_시크릿
-# 입찰공고 서비스 키가 따로 있을 때만 (없으면 위 키 사용)
-DATA_GO_KR_BID_SERVICE_KEY=
 ```
 
 - `=` 바로 뒤에 **같은 줄로** 붙여넣는다. 따옴표·공백 없이.

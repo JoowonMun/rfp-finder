@@ -77,7 +77,7 @@ def home(tmp_path, monkeypatch):
     (h / ".env").write_text("DATA_GO_KR_SERVICE_KEY=k\nNOTION_TOKEN=t\n", encoding="utf-8")
     monkeypatch.setenv("G2B_SCOUT_HOME", str(h))
     monkeypatch.chdir(tmp_path)
-    for k in ("DATA_GO_KR_SERVICE_KEY", "NOTION_TOKEN", "DATA_GO_KR_BID_SERVICE_KEY"):
+    for k in ("DATA_GO_KR_SERVICE_KEY", "NOTION_TOKEN"):
         monkeypatch.delenv(k, raising=False)
     return h
 

@@ -126,7 +126,7 @@ def cmd_candidates(args, ctx) -> dict:
     notices: list[Notice] = []
     warnings: list[str] = []
     try:
-        notices += api.fetch_bid_notices(secrets.bid_service_key, start, end)
+        notices += api.fetch_bid_notices(secrets.data_go_kr_service_key, start, end)
     except g2b_api.G2BApiError as e:
         warnings.append(f"입찰공고 수집 실패: {e}")
     if cfg.include_pre_spec:
@@ -169,7 +169,7 @@ def cmd_fetch(args, ctx) -> dict:
         secrets = load_secrets()
         for n in missing:
             try:
-                n.attachments = api.fetch_bid_attachments(secrets.bid_service_key, n.bid_no, n.bid_ord)
+                n.attachments = api.fetch_bid_attachments(secrets.data_go_kr_service_key, n.bid_no, n.bid_ord)
             except g2b_api.G2BApiError as e:
                 _log(f"fetch {n.key}: 첨부정보 조회 실패 {e}")
         cands = _read_json(run_dir / "candidates.json")

@@ -22,7 +22,7 @@ notion:
 def home(tmp_path, monkeypatch):
     monkeypatch.setenv("G2B_SCOUT_HOME", str(tmp_path / "home"))
     monkeypatch.chdir(tmp_path)
-    for k in ("DATA_GO_KR_SERVICE_KEY", "NOTION_TOKEN", "DATA_GO_KR_BID_SERVICE_KEY"):
+    for k in ("DATA_GO_KR_SERVICE_KEY", "NOTION_TOKEN"):
         monkeypatch.delenv(k, raising=False)
     (tmp_path / "home").mkdir()
     return tmp_path / "home"
@@ -88,14 +88,6 @@ def test_notice_roundtrip():
     )
     assert Notice.from_dict(n.to_dict()) == n
 
-
-def test_bid_service_key_separate_or_fallback(home, monkeypatch):
-    (home / ".env").write_text("DATA_GO_KR_SERVICE_KEY=common\nNOTION_TOKEN=n\n", encoding="utf-8")
-    assert load_secrets().bid_service_key == "common"
-    monkeypatch.setenv("DATA_GO_KR_BID_SERVICE_KEY", "bidkey")
-    s = load_secrets()
-    assert s.bid_service_key == "bidkey"
-    assert s.data_go_kr_service_key == "common"
 
 
 def test_priority_keywords_loaded(home):

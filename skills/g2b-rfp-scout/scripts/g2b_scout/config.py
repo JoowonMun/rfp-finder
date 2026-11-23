@@ -36,11 +36,6 @@ class Config:
 class Secrets:
     data_go_kr_service_key: str
     notion_token: str
-    bid_service_key: str = ""  # 입찰공고 서비스 전용 키. 비어 있으면 공용 키 사용
-
-    def __post_init__(self):
-        if not self.bid_service_key:
-            self.bid_service_key = self.data_go_kr_service_key
 
 
 def _budget(value, name: str) -> int | None:
@@ -95,7 +90,6 @@ def load_config(path: Path | None = None) -> Config:
 
 
 _SECRET_NAMES = ("DATA_GO_KR_SERVICE_KEY", "NOTION_TOKEN")
-_OPTIONAL_NAMES = ("DATA_GO_KR_BID_SERVICE_KEY",)
 
 
 def load_secrets() -> Secrets:
@@ -106,7 +100,7 @@ def load_secrets() -> Secrets:
         dotenv_values(Path.cwd() / ".env"),
     ]
     found: dict[str, str] = {}
-    for name in _SECRET_NAMES + _OPTIONAL_NAMES:
+    for name in _SECRET_NAMES:
         for src in sources:
             val = (src.get(name) or "").strip()
             if val:
@@ -115,4 +109,4 @@ def load_secrets() -> Secrets:
     missing = [n for n in _SECRET_NAMES if n not in found]
     if missing:
         raise ConfigError(".env에 값이 없습니다: " + ", ".join(missing))
-    return Secrets(found["DATA_GO_KR_SERVICE_KEY"], found["NOTION_TOKEN"], found.get("DATA_GO_KR_BID_SERVICE_KEY", ""))
+    return Secrets(found["DATA_GO_KR_SERVICE_KEY"], found["NOTION_TOKEN"])
