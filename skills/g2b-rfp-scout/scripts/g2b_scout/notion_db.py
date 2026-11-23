@@ -215,9 +215,16 @@ def _eval_lines(text: str | None) -> list[str]:
     return [x for x in parts if x] or ["미기재"]
 
 
-def _bullets(items) -> list[dict]:
-    items = [str(i) for i in (items or [])]
-    return [_block("bulleted_list_item", i) for i in items] or [_block("paragraph", "-")]
+def _list_box(title: str, items, emoji: str, color: str) -> dict:
+    """색 콜아웃 안에 '제목(굵게)' + '• 항목' 줄들. 단 안의 콜아웃은 자식 블록을 못 가져(중첩 2단계 제한)
+    목록을 텍스트 줄로 넣는다."""
+    rich = [{"type": "text", "text": {"content": title}, "annotations": {"bold": True}}]
+    items = [str(i) for i in (items or [])] or ["-"]
+    for i in items:
+        rich.append({"type": "text", "text": {"content": "\n• "}})
+        rich.extend(_rich(i))
+    return {"object": "block", "type": "callout",
+            "callout": {"rich_text": rich[:100], "icon": {"type": "emoji", "emoji": emoji}, "color": color}}
 
 
 def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date) -> list[dict]:
@@ -252,8 +259,8 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date) ->
         blocks.append(_block("paragraph", "-"))
 
     blocks.append(_columns([
-        [_block("heading_3", "✅ 우리 팀과 맞는 점"), *_bullets(d.get("why_fit"))],
-        [_block("heading_3", "⚠️ 안 맞는 점·리스크"), *_bullets(d.get("gaps"))],
+        [_list_box("우리 팀과 맞는 점", d.get("why_fit"), "✅", "green_background")],
+        [_list_box("안 맞는 점·리스크", d.get("gaps"), "⚠️", "red_background")],
     ]))
 
     blocks.append(_block("heading_3", "☑ 참가 자격 체크리스트"))
