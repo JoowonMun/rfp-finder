@@ -309,3 +309,16 @@ def test_create_database_is_inline():
     body = s.calls[0][2]["json"]
     assert body["is_inline"] is True
     assert set(body["properties"]) == set(DB_PROPERTIES)
+
+
+def _u16(s):
+    return len(s.encode("utf-16-le")) // 2
+
+
+def test_text_limits_count_utf16_units():
+    wide = "\U000f02b1"  # HWP 사용자 정의 기호: UTF-16 2칸
+    blocks = dash(excerpt=("가" * 1999 + wide) * 3)
+    tog = [b for b in blocks if b["type"] == "toggle"][1]
+    assert all(_u16(_plain(p["paragraph"]["rich_text"])) <= 2000 for p in tog["toggle"]["children"])
+    p = build_properties(notice(), analysis(summary=wide * 1500), OK_DOC, None, TODAY)
+    assert _u16(text(p, "한줄 요약")) <= 2000

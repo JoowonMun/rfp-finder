@@ -52,8 +52,23 @@ def parse_notion_id(value: str) -> str:
     return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
 
 
+def _chunks16(s: str, limit: int = TEXT_LIMIT) -> list[str]:
+    """노션은 글자 수를 UTF-16 단위로 센다 → 그 기준으로 limit 이하 조각으로 자른다."""
+    out, cur, n = [], [], 0
+    for ch in s:
+        w = 2 if ord(ch) > 0xFFFF else 1
+        if n + w > limit:
+            out.append("".join(cur))
+            cur, n = [], 0
+        cur.append(ch)
+        n += w
+    if cur:
+        out.append("".join(cur))
+    return out
+
+
 def _rt(s: str) -> list[dict]:
-    s = (s or "")[:TEXT_LIMIT]
+    s = (_chunks16(s or "") or [""])[0]
     return [{"type": "text", "text": {"content": s}}] if s else []
 
 
@@ -193,7 +208,7 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date, ex
 
     if excerpt and excerpt.strip():
         text = excerpt.strip()[:EXCERPT_LIMIT]
-        paras = [_block("paragraph", text[i : i + TEXT_LIMIT]) for i in range(0, len(text), TEXT_LIMIT)]
+        paras = [_block("paragraph", c) for c in _chunks16(text)]
         blocks.append(_block("toggle", "제안요청서 원문 발췌", children=paras))
     return blocks[:100]
 
