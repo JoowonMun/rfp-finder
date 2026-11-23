@@ -9,6 +9,7 @@ from g2b_scout.notion_db import (
     DB_PROPERTIES,
     NotionClient,
     build_blocks,
+    split_deep,
     build_properties,
     parse_notion_id,
 )
@@ -188,9 +189,54 @@ def test_two_columns_fit_and_gaps():
     assert len(left) == 1 and len(right) == 1
     lbox, rbox = left[0]["callout"], right[0]["callout"]
     assert lbox["color"] == "green_background" and rbox["color"] == "red_background"
-    assert _plain(lbox["rich_text"]) == "우리 팀과 맞는 점\n• ISP 경험"
-    assert _plain(rbox["rich_text"]) == "안 맞는 점·리스크\n• 구축 일부 포함"
-    assert _bold_parts(lbox["rich_text"])[0] == "우리 팀과 맞는 점"
+    assert lbox["rich_text"] == []
+    lk, rk = lbox["children"], rbox["children"]
+    assert lk[0]["type"] == "heading_3" and _plain(lk[0]["heading_3"]["rich_text"]) == "✅ 우리 팀과 맞는 점"
+    assert lk[1]["type"] == "bulleted_list_item" and _plain(lk[1]["bulleted_list_item"]["rich_text"]) == "ISP 경험"
+    assert _plain(rk[0]["heading_3"]["rich_text"]) == "⚠️ 안 맞는 점·리스크"
+    assert _plain(rk[1]["bulleted_list_item"]["rich_text"]) == "구축 일부 포함"
+
+
+def test_split_deep_defers_third_level():
+    blocks = dash()
+    shallow, deferred = split_deep(blocks)
+    i_cols = [i for i, b in enumerate(blocks) if b["type"] == "column_list"][1]
+    assert [p for p, _ in deferred] == [(i_cols, 0, 0), (i_cols, 1, 0)]
+    assert deferred[0][1][0]["type"] == "heading_3"
+    box = shallow[i_cols]["column_list"]["children"][0]["column"]["children"][0]["callout"]
+    assert "children" not in box
+    # 원본은 그대로
+    assert "children" in blocks[i_cols]["column_list"]["children"][0]["column"]["children"][0]["callout"]
+    # 2단계 이내 자식(번호 목록의 불릿)은 그대로 둠
+    shallow2, _ = split_deep(dash(requirements=[{"title": "A", "details": ["a1"]}]))
+    assert any("children" in b.get("numbered_list_item", {}) for b in shallow2)
+
+
+def test_create_entry_appends_deferred_children():
+    blocks = dash()
+    i_cols = [i for i, b in enumerate(blocks) if b["type"] == "column_list"][1]
+    top = [{"id": f"t{i}"} for i in range(len(blocks))]
+    s = FakeSession([
+        Resp({"id": "page1"}),
+        Resp({"results": top}),
+        Resp({"results": [{"id": "colL"}, {"id": "colR"}]}),
+        Resp({"results": [{"id": "boxL"}]}),
+        Resp({}),
+        Resp({"results": [{"id": "boxR"}]}),
+        Resp({}),
+    ])
+    NotionClient("tok", session=s).create_entry("db1", notice(), analysis(3), OK_DOC, None, TODAY)
+    urls = [(m, u.split("/v1")[-1]) for m, u, _ in s.calls]
+    assert urls == [
+        ("POST", "/pages"),
+        ("GET", "/blocks/page1/children?page_size=100"),
+        ("GET", f"/blocks/t{i_cols}/children?page_size=100"),
+        ("GET", "/blocks/colL/children?page_size=100"),
+        ("PATCH", "/blocks/boxL/children"),
+        ("GET", "/blocks/colR/children?page_size=100"),
+        ("PATCH", "/blocks/boxR/children"),
+    ]
+    assert s.calls[4][2]["json"]["children"][0]["type"] == "heading_3"
 
 
 def test_checklist_from_explicit_items():
@@ -220,7 +266,8 @@ def test_nesting_depth_at_most_two():
     def depth(block):
         inner = block[block["type"]].get("children", [])
         return 0 if not inner else 1 + max(depth(c) for c in inner)
-    assert max(depth(b) for b in dash()) <= 2
+    shallow, _ = split_deep(dash(requirements=[{"title": "A", "details": ["a1"]}]))
+    assert max(depth(b) for b in shallow) <= 2
 
 
 def test_parse_notion_id():
@@ -321,7 +368,7 @@ def test_text_limits_count_utf16_units():
     wide = "\U000f02b1"  # HWP 사용자 정의 기호: UTF-16 2칸
     blocks = dash(why_fit=[("가" * 1999 + wide) * 3])
     cl = [b for b in blocks if b["type"] == "column_list"][1]
-    item = cl["column_list"]["children"][0]["column"]["children"][0]["callout"]
+    item = cl["column_list"]["children"][0]["column"]["children"][0]["callout"]["children"][1]["bulleted_list_item"]
     assert all(_u16(r["text"]["content"]) <= 2000 for r in item["rich_text"])
     p = build_properties(notice(), analysis(summary=wide * 1500), OK_DOC, None, TODAY)
     assert _u16(text(p, "한줄 요약")) <= 2000
@@ -436,9 +483,10 @@ def test_why_fit_and_gaps_keywords_bold():
     blocks = dash(why_fit=["**LLMOps** 경험이 있는 팀이 유리"], gaps=["**GPU 서버 구매** 비중이 큼"])
     cl = [b for b in blocks if b["type"] == "column_list"][1]
     left, right = [c["column"]["children"] for c in cl["column_list"]["children"]]
-    assert _plain(left[0]["callout"]["rich_text"]) == "우리 팀과 맞는 점\n• LLMOps 경험이 있는 팀이 유리"
-    assert _bold_parts(left[0]["callout"]["rich_text"]) == ["우리 팀과 맞는 점", "LLMOps"]
-    assert _bold_parts(right[0]["callout"]["rich_text"]) == ["안 맞는 점·리스크", "GPU 서버 구매"]
+    item_l = left[0]["callout"]["children"][1]["bulleted_list_item"]["rich_text"]
+    item_r = right[0]["callout"]["children"][1]["bulleted_list_item"]["rich_text"]
+    assert _plain(item_l) == "LLMOps 경험이 있는 팀이 유리"
+    assert _bold_parts(item_l) == ["LLMOps"] and _bold_parts(item_r) == ["GPU 서버 구매"]
 
 
 def test_bold_markers_stripped_from_properties():

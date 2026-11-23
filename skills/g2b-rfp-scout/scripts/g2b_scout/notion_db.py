@@ -216,15 +216,33 @@ def _eval_lines(text: str | None) -> list[str]:
 
 
 def _list_box(title: str, items, emoji: str, color: str) -> dict:
-    """색 콜아웃 안에 '제목(굵게)' + '• 항목' 줄들. 단 안의 콜아웃은 자식 블록을 못 가져(중첩 2단계 제한)
-    목록을 텍스트 줄로 넣는다."""
-    rich = [{"type": "text", "text": {"content": title}, "annotations": {"bold": True}}]
+    """색 콜아웃 안에 제목(heading_3) + 노션 불릿 목록.
+    단(column) 안의 콜아웃 자식은 3단계 중첩이라 페이지 생성 때 못 넣는다 → split_deep 이 떼어내
+    create_entry 가 페이지를 만든 뒤 콜아웃에 덧붙인다."""
     items = [str(i) for i in (items or [])] or ["-"]
-    for i in items:
-        rich.append({"type": "text", "text": {"content": "\n• "}})
-        rich.extend(_rich(i))
+    kids = [_block("heading_3", f"{emoji} {title}"), *(_block("bulleted_list_item", i) for i in items)]
     return {"object": "block", "type": "callout",
-            "callout": {"rich_text": rich[:100], "icon": {"type": "emoji", "emoji": emoji}, "color": color}}
+            "callout": {"rich_text": [], "icon": {"type": "emoji", "emoji": emoji}, "color": color, "children": kids}}
+
+
+MAX_DEPTH = 2  # 노션 API: 한 요청 안에서 블록 중첩은 2단계까지
+
+
+def split_deep(blocks: list[dict], depth: int = 0, path: tuple = ()) -> tuple[list[dict], list[tuple[tuple, list[dict]]]]:
+    """중첩 한도를 넘는 자식을 떼어낸 사본과 [(블록 위치 경로, 자식 목록)]을 돌려준다."""
+    out, deferred = [], []
+    for i, b in enumerate(blocks):
+        b = {**b, b["type"]: dict(b[b["type"]])}
+        payload = b[b["type"]]
+        kids = payload.get("children")
+        if kids:
+            if depth >= MAX_DEPTH:
+                deferred.append((path + (i,), payload.pop("children")))
+            else:
+                payload["children"], sub = split_deep(kids, depth + 1, path + (i,))
+                deferred += sub
+        out.append(b)
+    return out, deferred
 
 
 def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date) -> list[dict]:
@@ -363,9 +381,19 @@ class NotionClient:
         self, database_id: str, notice: Notice, analysis: dict, doc: DocResult,
         file_upload_id: str | None, today: date | None = None,
     ) -> dict:
+        shallow, deferred = split_deep(build_blocks(analysis, doc, notice, today or date.today()))
         body = {
             "parent": {"database_id": database_id},
             "properties": build_properties(notice, analysis, doc, file_upload_id, today or date.today()),
-            "children": build_blocks(analysis, doc, notice, today or date.today()),
+            "children": shallow,
         }
-        return self._request("POST", "/pages", json=body)
+        page = self._request("POST", "/pages", json=body)
+        listed: dict[str, list[dict]] = {}
+        for path, kids in deferred:
+            block_id = page["id"]
+            for idx in path:
+                if block_id not in listed:
+                    listed[block_id] = self._request("GET", f"/blocks/{block_id}/children?page_size=100").get("results", [])
+                block_id = listed[block_id][idx]["id"]
+            self._request("PATCH", f"/blocks/{block_id}/children", json={"children": kids})
+        return page
