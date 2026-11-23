@@ -307,3 +307,11 @@ def test_has_key_uses_filter():
     assert c.has_key("db1", "B1") is True
     assert s.calls[0][2]["json"]["filter"] == {"property": "공고번호", "rich_text": {"equals": "B1"}}
     assert c.has_key("db1", "B2") is False
+
+
+def test_create_database_is_inline():
+    s = FakeSession([Resp({"id": "db-new"})])
+    assert NotionClient("tok", session=s).create_database("1f2e3d4c5b6a79881f2e3d4c5b6a7988") == "db-new"
+    body = s.calls[0][2]["json"]
+    assert body["is_inline"] is True
+    assert set(body["properties"]) == set(DB_PROPERTIES)

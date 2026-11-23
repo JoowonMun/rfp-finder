@@ -241,6 +241,7 @@ class NotionClient:
         body = {
             "parent": {"type": "page_id", "page_id": parse_notion_id(parent_page_id)},
             "title": _rt(title),
+            "is_inline": True,  # 부모 페이지 안에 표로 바로 보이게
             "properties": DB_PROPERTIES,
         }
         return self._request("POST", "/databases", json=body)["id"]
