@@ -28,4 +28,10 @@ def validate_analysis(data: dict) -> dict:
             raise AnalysisError(f"detail.{k} 는 목록이어야 함")
     if not isinstance(detail["rfp_read"], bool):
         raise AnalysisError("detail.rfp_read 는 true/false 여야 함")
+    checklist = detail.get("eligibility_checklist")
+    if checklist is not None:
+        if not isinstance(checklist, list) or not all(
+            isinstance(c, dict) and isinstance(c.get("item"), str) and isinstance(c.get("ok"), bool) for c in checklist
+        ):
+            raise AnalysisError('detail.eligibility_checklist 는 [{"item": 문자열, "ok": true/false}] 목록이어야 함')
     return data

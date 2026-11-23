@@ -105,22 +105,126 @@ def test_revised_notice_marked():
     assert not text(p0, "한줄 요약").startswith("[정정공고]")
 
 
-def _headings(blocks):
-    return [b["heading_2"]["rich_text"][0]["text"]["content"] for b in blocks if b["type"] == "heading_2"]
+def _types(blocks):
+    return [b["type"] for b in blocks]
+
+
+def _plain(rich):
+    return "".join(t["text"]["content"] for t in rich)
+
+
+def _cards(blocks):
+    cl = next(b for b in blocks if b["type"] == "column_list")
+    return [_plain(col["column"]["children"][0]["callout"]["rich_text"]) for col in cl["column_list"]["children"]], cl
+
+
+def dash(fit=3, doc=OK_DOC, n=None, excerpt="제안요청서 본문 발췌", **detail):
+    a = analysis(fit)
+    a["detail"].update(detail)
+    return build_blocks(a, doc, n or notice(), TODAY, excerpt)
 
 
 def test_build_blocks_failed_warning():
-    blocks = build_blocks(analysis(), FAIL_DOC)
+    blocks = dash(doc=FAIL_DOC, excerpt=None)
     assert blocks[0]["type"] == "callout"
-    assert blocks[0]["callout"]["rich_text"][0]["text"]["content"] == "⚠ 제안요청서 변환 실패 — 원문 직접 확인 필요"
+    assert _plain(blocks[0]["callout"]["rich_text"]) == "⚠ 제안요청서 변환 실패 — 원문 직접 확인 필요"
 
 
-def test_build_blocks_sections():
-    blocks = build_blocks(analysis(), OK_DOC)
-    assert blocks[0]["type"] != "callout"
-    assert _headings(blocks) == ["적합도 판단", "사업 개요", "주요 요구사항", "우리 팀과 맞는 이유", "안 맞는 부분", "참가 자격·리스크", "평가 방식"]
-    bullets = [b for b in blocks if b["type"] == "bulleted_list_item"]
-    assert any(b["bulleted_list_item"]["rich_text"][0]["text"]["content"] == "AI 도입 로드맵" for b in bullets)
+def test_dashboard_cards():
+    blocks = dash(fit=3, duration="6개월")
+    assert blocks[0]["type"] == "column_list"
+    texts, cl = _cards(blocks)
+    assert len(texts) == 4
+    assert "★★★" in texts[0] and "바로 검토" in texts[0]
+    assert "4.2억" in texts[1] and "6개월" in texts[1]
+    assert "D-56" in texts[2] and "01.15(금) 10:00" in texts[2]
+    assert "기술 90 : 가격 10" in texts[3]
+    fit_card = cl["column_list"]["children"][0]["column"]["children"][0]["callout"]
+    assert fit_card["color"] == "green_background"
+
+
+def test_card_colors_and_labels_by_fit():
+    for fit, color, label in [(2, "yellow_background", "조건부 검토"), (1, "gray_background", "자동제외")]:
+        texts, cl = _cards(dash(fit=fit))
+        assert label in texts[0]
+        assert cl["column_list"]["children"][0]["column"]["children"][0]["callout"]["color"] == color
+
+
+def test_cards_missing_values():
+    n = notice()
+    n.budget_krw, n.deadline = None, None
+    texts, _ = _cards(dash(n=n))
+    assert "미기재" in texts[1] and "미기재" in texts[2]
+
+
+def test_prespec_deadline_label():
+    texts, _ = _cards(dash(n=notice(kind="prespec")))
+    assert "의견마감" in texts[2]
+
+
+def test_dashboard_layout_order():
+    blocks = dash()
+    t = _types(blocks)
+    assert t[:3] == ["column_list", "callout", "column_list"]
+    assert "to_do" in t and "table" in t
+    toggles = [_plain(b["toggle"]["rich_text"]) for b in blocks if b["type"] == "toggle"]
+    assert toggles == ["상세 분석", "제안요청서 원문 발췌"]
+
+
+def test_two_columns_fit_and_gaps():
+    blocks = dash()
+    cl = [b for b in blocks if b["type"] == "column_list"][1]
+    left, right = [c["column"]["children"] for c in cl["column_list"]["children"]]
+    assert _plain(left[0]["heading_3"]["rich_text"]) == "✅ 우리 팀과 맞는 점"
+    assert _plain(left[1]["bulleted_list_item"]["rich_text"]) == "ISP 경험"
+    assert _plain(right[0]["heading_3"]["rich_text"]) == "⚠️ 안 맞는 점·리스크"
+    assert _plain(right[1]["bulleted_list_item"]["rich_text"]) == "구축 일부 포함"
+
+
+def test_checklist_from_explicit_items():
+    blocks = dash(eligibility_checklist=[{"item": "공동수급 허용", "ok": True}, {"item": "SW사업자", "ok": False}])
+    todos = [(_plain(b["to_do"]["rich_text"]), b["to_do"]["checked"]) for b in blocks if b["type"] == "to_do"]
+    assert todos == [("공동수급 허용", True), ("SW사업자", False)]
+
+
+def test_checklist_falls_back_to_risks():
+    todos = [(_plain(b["to_do"]["rich_text"]), b["to_do"]["checked"]) for b in dash() if b["type"] == "to_do"]
+    assert todos == [("실적 요건 확인 필요", False)]
+
+
+def test_requirements_table():
+    table = next(b for b in dash() if b["type"] == "table")
+    rows = table["table"]["children"]
+    assert table["table"]["table_width"] == 2 and table["table"]["has_column_header"] is True
+    cells = [[_plain(c) for c in r["table_row"]["cells"]] for r in rows]
+    assert cells == [["#", "요구사항"], ["1", "현황 진단"], ["2", "AI 도입 로드맵"]]
+
+
+def test_detail_toggle_contains_full_text():
+    toggle = next(b for b in dash() if b["type"] == "toggle")
+    text = " ".join(_plain(c[c["type"]]["rich_text"]) for c in toggle["toggle"]["children"])
+    for s in ["기간 6개월, 예산 4.2억", "AI 도입 로드맵", "ISP 경험", "구축 일부 포함", "실적 요건 확인 필요", "기술 90 : 가격 10"]:
+        assert s in text
+
+
+def test_excerpt_toggle_split_and_capped():
+    blocks = dash(excerpt="가" * 10000)
+    tog = [b for b in blocks if b["type"] == "toggle"][1]
+    paras = tog["toggle"]["children"]
+    assert all(len(_plain(p["paragraph"]["rich_text"])) <= 2000 for p in paras)
+    assert sum(len(_plain(p["paragraph"]["rich_text"])) for p in paras) <= 6100
+
+
+def test_no_excerpt_toggle_without_text():
+    toggles = [b for b in dash(excerpt=None) if b["type"] == "toggle"]
+    assert len(toggles) == 1
+
+
+def test_nesting_depth_at_most_two():
+    def depth(block):
+        inner = block[block["type"]].get("children", [])
+        return 0 if not inner else 1 + max(depth(c) for c in inner)
+    assert max(depth(b) for b in dash()) <= 2
 
 
 def test_parse_notion_id():

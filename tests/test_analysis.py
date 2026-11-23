@@ -50,3 +50,14 @@ def test_validate_list_fields():
     bad["detail"]["requirements"] = "문자열"
     with pytest.raises(AnalysisError, match="requirements"):
         validate_analysis(bad)
+
+
+def test_validate_checklist_optional_but_typed():
+    ok = copy.deepcopy(GOOD)
+    ok["detail"]["eligibility_checklist"] = [{"item": "공동수급 허용", "ok": True}]
+    ok["detail"]["duration"] = "6개월"
+    validate_analysis(ok)
+    bad = copy.deepcopy(GOOD)
+    bad["detail"]["eligibility_checklist"] = [{"item": "x", "ok": "yes"}]
+    with pytest.raises(AnalysisError, match="eligibility_checklist"):
+        validate_analysis(bad)

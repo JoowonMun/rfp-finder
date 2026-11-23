@@ -99,37 +99,115 @@ def build_properties(
     }
 
 
-def _block(kind: str, content: str) -> dict:
-    return {"object": "block", "type": kind, kind: {"rich_text": _rt(content)}}
+FIT_CARD = {3: ("바로 검토", "green_background"), 2: ("조건부 검토", "yellow_background"), 1: ("자동제외", "gray_background")}
+WEEKDAY = "월화수목금토일"
+EXCERPT_LIMIT = 6000
 
 
-def build_blocks(analysis: dict, doc: DocResult) -> list[dict]:
+def _block(kind: str, content: str, **extra) -> dict:
+    return {"object": "block", "type": kind, kind: {"rich_text": _rt(content), **extra}}
+
+
+def _callout(content: str, emoji: str, color: str) -> dict:
+    return _block("callout", content, icon={"type": "emoji", "emoji": emoji}, color=color)
+
+
+def _columns(children_per_column: list[list[dict]]) -> dict:
+    return {
+        "object": "block", "type": "column_list",
+        "column_list": {"children": [
+            {"object": "block", "type": "column", "column": {"children": kids}} for kids in children_per_column
+        ]},
+    }
+
+
+def _won(v: int | None) -> str:
+    if not v:
+        return "미기재"
+    if v >= 100_000_000:
+        return f"{v / 100_000_000:.1f}".rstrip("0").rstrip(".") + "억"
+    return f"{v // 10_000:,}만원"
+
+
+def _deadline_card(notice: Notice, today: date) -> str:
+    label = "의견마감" if notice.kind == "prespec" else "마감"
+    if not notice.deadline:
+        return "\n".join([label, "미기재"])
+    days = (notice.deadline.date() - today).days
+    dday = "D-day" if days == 0 else (f"D-{days}" if days > 0 else f"D+{-days}")
+    d = notice.deadline
+    return "\n".join([label, dday, f"{d:%m.%d}({WEEKDAY[d.weekday()]}) {d:%H:%M}"])
+
+
+def _rows(cells: list[list[str]]) -> list[dict]:
+    return [{"object": "block", "type": "table_row", "table_row": {"cells": [_rt(c) for c in r]}} for r in cells]
+
+
+def _bullets(items) -> list[dict]:
+    items = [str(i) for i in (items or [])]
+    return [_block("bulleted_list_item", i) for i in items] or [_block("paragraph", "-")]
+
+
+def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date, excerpt: str | None = None) -> list[dict]:
     d = analysis.get("detail", {})
+    fit = int(analysis["fit"])
+    label, color = FIT_CARD[fit]
     blocks: list[dict] = []
     if not doc.ok:
-        blocks.append({
-            "object": "block", "type": "callout",
-            "callout": {"rich_text": _rt("⚠ 제안요청서 변환 실패 — 원문 직접 확인 필요"), "icon": {"type": "emoji", "emoji": "⚠️"}},
-        })
+        blocks.append(_callout("⚠ 제안요청서 변환 실패 — 원문 직접 확인 필요", "⚠️", "red_background"))
 
-    def section(title: str, body) -> None:
-        blocks.append(_block("heading_2", title))
-        items = body if isinstance(body, list) else None
-        if items is None:
-            blocks.append(_block("paragraph", str(body or "-")))
-        elif not items:
-            blocks.append(_block("paragraph", "-"))
-        else:
-            blocks.extend(_block("bulleted_list_item", str(i)) for i in items)
+    duration = d.get("duration") or ""
+    blocks.append(_columns([
+        [_callout("\n".join(["적합도", FIT_LABEL[fit], label]), "🎯", color)],
+        [_callout("\n".join(["예산", _won(notice.budget_krw)] + ([duration] if duration else [])), "💰", "blue_background")],
+        [_callout(_deadline_card(notice, today), "⏰", "orange_background")],
+        [_callout("\n".join(["평가", d.get("evaluation") or "미기재"]), "📊", "purple_background")],
+    ]))
+    blocks.append(_callout(analysis.get("fit_reason", ""), "💬", "gray_background"))
+    blocks.append(_columns([
+        [_block("heading_3", "✅ 우리 팀과 맞는 점"), *_bullets(d.get("why_fit"))],
+        [_block("heading_3", "⚠️ 안 맞는 점·리스크"), *_bullets(d.get("gaps"))],
+    ]))
 
-    section("적합도 판단", f"{FIT_LABEL[int(analysis['fit'])]} {analysis.get('fit_reason', '')}")
-    section("사업 개요", d.get("overview"))
-    section("주요 요구사항", d.get("requirements", []))
-    section("우리 팀과 맞는 이유", d.get("why_fit", []))
-    section("안 맞는 부분", d.get("gaps", []))
-    section("참가 자격·리스크", d.get("eligibility_risks", []))
-    section("평가 방식", d.get("evaluation"))
+    blocks.append(_block("heading_3", "☑ 참가 자격 체크리스트"))
+    checklist = d.get("eligibility_checklist") or [{"item": r, "ok": False} for r in d.get("eligibility_risks", [])]
+    if checklist:
+        blocks.extend(_block("to_do", str(c.get("item", "")), checked=bool(c.get("ok"))) for c in checklist)
+    else:
+        blocks.append(_block("paragraph", "제안요청서에 명시된 자격 요건 없음"))
+
+    blocks.append(_block("heading_3", "📋 주요 요구사항"))
+    reqs = [str(r) for r in d.get("requirements", [])]
+    if reqs:
+        blocks.append({"object": "block", "type": "table", "table": {
+            "table_width": 2, "has_column_header": True, "has_row_header": False,
+            "children": _rows([["#", "요구사항"]] + [[str(i), r] for i, r in enumerate(reqs, 1)]),
+        }})
+    else:
+        blocks.append(_block("paragraph", "-"))
+
+    detail_children = [
+        _block("heading_3", "사업 개요"), _block("paragraph", str(d.get("overview") or "-")),
+        _block("heading_3", "주요 요구사항"), *_bullets(reqs),
+        _block("heading_3", "우리 팀과 맞는 이유"), *_bullets(d.get("why_fit")),
+        _block("heading_3", "안 맞는 부분"), *_bullets(d.get("gaps")),
+        _block("heading_3", "참가 자격·리스크"), *_bullets(d.get("eligibility_risks")),
+        _block("heading_3", "평가 방식"), _block("paragraph", str(d.get("evaluation") or "-")),
+    ]
+    blocks.append(_block("toggle", "상세 분석", children=detail_children[:100]))
+
+    if excerpt and excerpt.strip():
+        text = excerpt.strip()[:EXCERPT_LIMIT]
+        paras = [_block("paragraph", text[i : i + TEXT_LIMIT]) for i in range(0, len(text), TEXT_LIMIT)]
+        blocks.append(_block("toggle", "제안요청서 원문 발췌", children=paras))
     return blocks[:100]
+
+
+def _read_excerpt(doc: DocResult) -> str | None:
+    try:
+        return Path(doc.excerpt_path).read_text(encoding="utf-8") if doc.excerpt_path else None
+    except OSError:
+        return None
 
 
 class NotionClient:
@@ -208,6 +286,6 @@ class NotionClient:
         body = {
             "parent": {"database_id": database_id},
             "properties": build_properties(notice, analysis, doc, file_upload_id, collector, today or date.today()),
-            "children": build_blocks(analysis, doc),
+            "children": build_blocks(analysis, doc, notice, today or date.today(), _read_excerpt(doc)),
         }
         return self._request("POST", "/pages", json=body)
