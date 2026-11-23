@@ -26,6 +26,13 @@ def validate_analysis(data: dict) -> dict:
     for k in DETAIL_LIST:
         if not isinstance(detail[k], list):
             raise AnalysisError(f"detail.{k} 는 목록이어야 함")
+    for r in detail["requirements"]:
+        ok = isinstance(r, str) or (
+            isinstance(r, dict) and isinstance(r.get("title"), str)
+            and isinstance(r.get("details", []), list) and all(isinstance(x, str) for x in r.get("details", []))
+        )
+        if not ok:
+            raise AnalysisError('detail.requirements 항목은 문자열 또는 {"title": 문자열, "details": [문자열]} 이어야 함')
     if not isinstance(detail["rfp_read"], bool):
         raise AnalysisError("detail.rfp_read 는 true/false 여야 함")
     checklist = detail.get("eligibility_checklist")

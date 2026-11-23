@@ -206,6 +206,10 @@ def cmd_publish(args, ctx) -> dict:
     record = {"fit": analysis["fit"], "rfp_ok": doc.ok, "url": None, "title": notice.title,
               "deadline": notice.deadline.isoformat() if notice.deadline else None, "excluded": False}
 
+    notion = _notion(ctx, secrets)
+    if args.replace:  # 기존 페이지를 지우고 새로 만든다 (재분석·레이아웃 변경용)
+        notion.archive_key(db, notice.key)
+
     if analysis["fit"] == 1:  # 자동제외: 노션 표에는 올리지 않고 로컬에만 기록
         excluded.add(notice.key, notice.title, ctx["now"].date())
         published[notice.key] = {**record, "excluded": True}
@@ -213,7 +217,6 @@ def cmd_publish(args, ctx) -> dict:
         _log(f"publish {notice.key}: fit=1 → 자동제외(로컬 기록)")
         return {"key": notice.key, "status": "excluded", "page_url": None}
 
-    notion = _notion(ctx, secrets)
     if notion.has_key(db, notice.key):
         return {"key": notice.key, "status": "skipped_duplicate", "page_url": None}
 
@@ -265,6 +268,7 @@ def _parser() -> argparse.ArgumentParser:
     s = sub.add_parser("publish")
     s.add_argument("--run", required=True)
     s.add_argument("--key", required=True)
+    s.add_argument("--replace", action="store_true", help="같은 공고 페이지가 있으면 지우고 다시 만든다")
     return p
 
 

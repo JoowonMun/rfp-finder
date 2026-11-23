@@ -156,13 +156,29 @@ def test_prespec_deadline_label():
     assert "의견마감" in texts[2]
 
 
+def _h3(blocks):
+    return [_plain(b["heading_3"]["rich_text"]) for b in blocks if b["type"] == "heading_3"]
+
+
 def test_dashboard_layout_order():
     blocks = dash()
     t = _types(blocks)
-    assert t[:3] == ["column_list", "callout", "column_list"]
-    assert "to_do" in t and "table" in t
-    toggles = [_plain(b["toggle"]["rich_text"]) for b in blocks if b["type"] == "toggle"]
-    assert toggles == ["상세 분석", "제안요청서 원문 발췌"]
+    assert t[:2] == ["column_list", "callout"]
+    assert "table" not in t
+    assert _h3(blocks) == ["📌 사업 개요", "📋 주요 요구사항", "☑ 참가 자격 체크리스트", "📊 평가 방식"]
+    assert [_plain(b["toggle"]["rich_text"]) for b in blocks if b["type"] == "toggle"] == ["제안요청서 원문 발췌"]
+    # 맞는 점/안 맞는 점 2단은 요구사항 다음, 자격 체크리스트 앞
+    i_cols = [i for i, b in enumerate(blocks) if b["type"] == "column_list"][1]
+    i_req = next(i for i, b in enumerate(blocks) if b["type"] == "numbered_list_item")
+    i_chk = next(i for i, b in enumerate(blocks) if b["type"] == "to_do")
+    assert i_req < i_cols < i_chk
+
+
+def test_cards_are_bold():
+    _, cl = _cards(dash())
+    rich = cl["column_list"]["children"][0]["column"]["children"][0]["callout"]["rich_text"]
+    bold = [r["text"]["content"] for r in rich if r.get("annotations", {}).get("bold")]
+    assert any("적합도" in b for b in bold) and any("★★★" in b for b in bold)
 
 
 def test_two_columns_fit_and_gaps():
@@ -186,24 +202,21 @@ def test_checklist_falls_back_to_risks():
     assert todos == [("실적 요건 확인 필요", False)]
 
 
-def test_requirements_table():
-    table = next(b for b in dash() if b["type"] == "table")
-    rows = table["table"]["children"]
-    assert table["table"]["table_width"] == 2 and table["table"]["has_column_header"] is True
-    cells = [[_plain(c) for c in r["table_row"]["cells"]] for r in rows]
-    assert cells == [["#", "요구사항"], ["1", "현황 진단"], ["2", "AI 도입 로드맵"]]
+def test_requirements_numbered_bold():
+    items = [b for b in dash() if b["type"] == "numbered_list_item"]
+    assert [_plain(b["numbered_list_item"]["rich_text"]) for b in items] == ["현황 진단", "AI 도입 로드맵"]
+    assert all(r["annotations"]["bold"] for b in items for r in b["numbered_list_item"]["rich_text"])
 
 
-def test_detail_toggle_contains_full_text():
-    toggle = next(b for b in dash() if b["type"] == "toggle")
-    text = " ".join(_plain(c[c["type"]]["rich_text"]) for c in toggle["toggle"]["children"])
-    for s in ["기간 6개월, 예산 4.2억", "AI 도입 로드맵", "ISP 경험", "구축 일부 포함", "실적 요건 확인 필요", "기술 90 : 가격 10"]:
-        assert s in text
+def test_overview_and_evaluation_shown_inline():
+    blocks = dash()
+    paras = " ".join(_plain(b["paragraph"]["rich_text"]) for b in blocks if b["type"] == "paragraph")
+    assert "기간 6개월, 예산 4.2억" in paras and "기술 90 : 가격 10" in paras
 
 
 def test_excerpt_toggle_split_and_capped():
     blocks = dash(excerpt="가" * 10000)
-    tog = [b for b in blocks if b["type"] == "toggle"][1]
+    tog = [b for b in blocks if b["type"] == "toggle"][0]
     paras = tog["toggle"]["children"]
     assert all(len(_plain(p["paragraph"]["rich_text"])) <= 2000 for p in paras)
     assert sum(len(_plain(p["paragraph"]["rich_text"])) for p in paras) <= 6100
@@ -211,7 +224,7 @@ def test_excerpt_toggle_split_and_capped():
 
 def test_no_excerpt_toggle_without_text():
     toggles = [b for b in dash(excerpt=None) if b["type"] == "toggle"]
-    assert len(toggles) == 1
+    assert toggles == []
 
 
 def test_nesting_depth_at_most_two():
@@ -318,7 +331,7 @@ def _u16(s):
 def test_text_limits_count_utf16_units():
     wide = "\U000f02b1"  # HWP 사용자 정의 기호: UTF-16 2칸
     blocks = dash(excerpt=("가" * 1999 + wide) * 3)
-    tog = [b for b in blocks if b["type"] == "toggle"][1]
+    tog = [b for b in blocks if b["type"] == "toggle"][0]
     assert all(_u16(_plain(p["paragraph"]["rich_text"])) <= 2000 for p in tog["toggle"]["children"])
     p = build_properties(notice(), analysis(summary=wide * 1500), OK_DOC, None, TODAY)
     assert _u16(text(p, "한줄 요약")) <= 2000
@@ -346,3 +359,21 @@ def test_select_options_have_colors():
     assert colors["적합도"] == {"★★★": "green", "★★": "yellow", "★": "gray"}
     assert colors["구분"] == {"본공고": "blue", "사전규격": "purple"}
     assert colors["RFP 분석"] == {"완료": "green", "실패": "red"}
+
+
+def test_archive_key_archives_matching_pages():
+    s = FakeSession([Resp({"results": [{"id": "p1"}, {"id": "p2"}], "has_more": False}), Resp({}), Resp({})])
+    assert NotionClient("tok", session=s).archive_key("db1", "B1") == 2
+    assert s.calls[1][0] == "PATCH" and s.calls[1][1].endswith("/pages/p1") and s.calls[1][2]["json"] == {"archived": True}
+
+
+def test_requirements_with_details_render_nested_bullets():
+    blocks = dash(requirements=[
+        {"title": "AI 도입 로드맵 수립", "details": ["3개년 단계별 로드맵", "우선 과제 10건 선정"]},
+        "현황 진단",
+    ])
+    items = [b for b in blocks if b["type"] == "numbered_list_item"]
+    assert [_plain(b["numbered_list_item"]["rich_text"]) for b in items] == ["AI 도입 로드맵 수립", "현황 진단"]
+    kids = items[0]["numbered_list_item"]["children"]
+    assert [_plain(k["bulleted_list_item"]["rich_text"]) for k in kids] == ["3개년 단계별 로드맵", "우선 과제 10건 선정"]
+    assert "children" not in items[1]["numbered_list_item"]

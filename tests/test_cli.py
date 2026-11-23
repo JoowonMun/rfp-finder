@@ -52,6 +52,11 @@ class FakeNotion:
     def has_key(self, db, key):
         return key in self.existing
 
+    def archive_key(self, db, key):
+        self.archived = getattr(self, "archived", []) + [key]
+        self.existing.discard(key)
+        return 1
+
     def upload_file(self, path, max_mb):
         self.uploads.append(path)
         return "upl-1"
@@ -261,3 +266,20 @@ def test_candidates_fails_when_all_sources_fail(home, capsys):
             raise G2BApiError("사전규격 다운")
     code, out = run(capsys, ["candidates"], api=Down([], [], bid_error=True), notion=FakeNotion())
     assert code == 1 and out["ok"] is False and len(out["warnings"]) == 2
+
+
+def test_publish_replace_rebuilds_existing_page(home, capsys):
+    notion = FakeNotion()
+    run_dir = _prepare_run(home, capsys, notion)
+    notion.existing.add("B1")
+    code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1", "--replace"], notion=notion)
+    assert out["status"] == "created" and notion.archived == ["B1"] and notion.created == [("B1", "upl-1")]
+
+
+def test_publish_replace_fit1_archives_and_excludes(home, capsys):
+    notion = FakeNotion()
+    run_dir = _prepare_run(home, capsys, notion)
+    notion.existing.add("B1")
+    _set_fit(run_dir, 1)
+    code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1", "--replace"], notion=notion)
+    assert out["status"] == "excluded" and notion.archived == ["B1"] and notion.created == []

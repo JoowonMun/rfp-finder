@@ -115,12 +115,28 @@ WEEKDAY = "월화수목금토일"
 EXCERPT_LIMIT = 6000
 
 
-def _block(kind: str, content: str, **extra) -> dict:
-    return {"object": "block", "type": kind, kind: {"rich_text": _rt(content), **extra}}
+def _block(kind: str, content: str, *, bold: bool = False, **extra) -> dict:
+    rich = _rt(content)
+    if bold:
+        for r in rich:
+            r["annotations"] = {"bold": True}
+    return {"object": "block", "type": kind, kind: {"rich_text": rich, **extra}}
 
 
 def _callout(content: str, emoji: str, color: str) -> dict:
     return _block("callout", content, icon={"type": "emoji", "emoji": emoji}, color=color)
+
+
+def _card(label: str, value: str, sub: list[str], emoji: str, color: str) -> dict:
+    """카드: 항목명·값은 굵게, 보조 줄은 보통 글씨."""
+    rich = [
+        {"type": "text", "text": {"content": label + "\n"}, "annotations": {"bold": True, "color": "gray"}},
+        {"type": "text", "text": {"content": value}, "annotations": {"bold": True}},
+    ]
+    if sub:
+        rich.append({"type": "text", "text": {"content": "\n" + "\n".join(sub)}})
+    return {"object": "block", "type": "callout",
+            "callout": {"rich_text": rich, "icon": {"type": "emoji", "emoji": emoji}, "color": color}}
 
 
 def _columns(children_per_column: list[list[dict]]) -> dict:
@@ -140,18 +156,15 @@ def _won(v: int | None) -> str:
     return f"{v // 10_000:,}만원"
 
 
-def _deadline_card(notice: Notice, today: date) -> str:
+def _deadline_card(notice: Notice, today: date) -> dict:
     label = "의견마감" if notice.kind == "prespec" else "마감"
     if not notice.deadline:
-        return "\n".join([label, "미기재"])
+        return _card(label, "미기재", [], "⏰", "orange_background")
     days = (notice.deadline.date() - today).days
     dday = "D-day" if days == 0 else (f"D-{days}" if days > 0 else f"D+{-days}")
     d = notice.deadline
-    return "\n".join([label, f"{dday} ({today:%m.%d} 기준)", f"{d:%m.%d}({WEEKDAY[d.weekday()]}) {d:%H:%M}"])
-
-
-def _rows(cells: list[list[str]]) -> list[dict]:
-    return [{"object": "block", "type": "table_row", "table_row": {"cells": [_rt(c) for c in r]}} for r in cells]
+    return _card(label, dday, [f"({today:%m.%d} 기준)", f"{d:%m.%d}({WEEKDAY[d.weekday()]}) {d:%H:%M}"],
+                 "⏰", "orange_background")
 
 
 def _bullets(items) -> list[dict]:
@@ -169,12 +182,27 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date, ex
 
     duration = d.get("duration") or ""
     blocks.append(_columns([
-        [_callout("\n".join(["적합도", FIT_LABEL[fit], label]), "🎯", color)],
-        [_callout("\n".join(["예산", _won(notice.budget_krw)] + ([duration] if duration else [])), "💰", "blue_background")],
-        [_callout(_deadline_card(notice, today), "⏰", "orange_background")],
-        [_callout("\n".join(["평가", d.get("evaluation") or "미기재"]), "📊", "purple_background")],
+        [_card("적합도", FIT_LABEL[fit], [label], "🎯", color)],
+        [_card("예산", _won(notice.budget_krw), [duration] if duration else [], "💰", "blue_background")],
+        [_deadline_card(notice, today)],
+        [_card("평가", d.get("evaluation") or "미기재", [], "📊", "purple_background")],
     ]))
     blocks.append(_callout(analysis.get("fit_reason", ""), "💬", "gray_background"))
+
+    blocks.append(_block("heading_3", "📌 사업 개요"))
+    blocks.append(_block("paragraph", str(d.get("overview") or "-")))
+
+    blocks.append(_block("heading_3", "📋 주요 요구사항"))
+    reqs = d.get("requirements", []) or []
+    for r in reqs:
+        title, details = (r.get("title", ""), r.get("details") or []) if isinstance(r, dict) else (str(r), [])
+        item = _block("numbered_list_item", str(title), bold=True)
+        if details:
+            item["numbered_list_item"]["children"] = [_block("bulleted_list_item", str(x)) for x in details]
+        blocks.append(item)
+    if not reqs:
+        blocks.append(_block("paragraph", "-"))
+
     blocks.append(_columns([
         [_block("heading_3", "✅ 우리 팀과 맞는 점"), *_bullets(d.get("why_fit"))],
         [_block("heading_3", "⚠️ 안 맞는 점·리스크"), *_bullets(d.get("gaps"))],
@@ -187,25 +215,8 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date, ex
     else:
         blocks.append(_block("paragraph", "제안요청서에 명시된 자격 요건 없음"))
 
-    blocks.append(_block("heading_3", "📋 주요 요구사항"))
-    reqs = [str(r) for r in d.get("requirements", [])]
-    if reqs:
-        blocks.append({"object": "block", "type": "table", "table": {
-            "table_width": 2, "has_column_header": True, "has_row_header": False,
-            "children": _rows([["#", "요구사항"]] + [[str(i), r] for i, r in enumerate(reqs, 1)]),
-        }})
-    else:
-        blocks.append(_block("paragraph", "-"))
-
-    detail_children = [
-        _block("heading_3", "사업 개요"), _block("paragraph", str(d.get("overview") or "-")),
-        _block("heading_3", "주요 요구사항"), *_bullets(reqs),
-        _block("heading_3", "우리 팀과 맞는 이유"), *_bullets(d.get("why_fit")),
-        _block("heading_3", "안 맞는 부분"), *_bullets(d.get("gaps")),
-        _block("heading_3", "참가 자격·리스크"), *_bullets(d.get("eligibility_risks")),
-        _block("heading_3", "평가 방식"), _block("paragraph", str(d.get("evaluation") or "-")),
-    ]
-    blocks.append(_block("toggle", "상세 분석", children=detail_children[:100]))
+    blocks.append(_block("heading_3", "📊 평가 방식"))
+    blocks.append(_block("paragraph", str(d.get("evaluation") or "-")))
 
     if excerpt and excerpt.strip():
         text = excerpt.strip()[:EXCERPT_LIMIT]
@@ -280,6 +291,14 @@ class NotionClient:
     def has_key(self, database_id: str, key: str) -> bool:
         body = {"page_size": 1, "filter": {"property": "공고번호", "rich_text": {"equals": key}}}
         return bool(self._request("POST", f"/databases/{database_id}/query", json=body).get("results"))
+
+    def archive_key(self, database_id: str, key: str) -> int:
+        """같은 공고번호 페이지를 휴지통으로 (페이지 다시 만들기·재분류용)."""
+        body = {"page_size": 100, "filter": {"property": "공고번호", "rich_text": {"equals": key}}}
+        rows = self._request("POST", f"/databases/{database_id}/query", json=body).get("results", [])
+        for row in rows:
+            self._request("PATCH", f"/pages/{row['id']}", json={"archived": True})
+        return len(rows)
 
     def get_database(self, database_id: str) -> dict:
         return self._request("GET", f"/databases/{database_id}")
