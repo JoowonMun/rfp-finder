@@ -22,6 +22,7 @@ class Config:
     include_keywords: list[str]
     past_projects: str = ""
     exclude_keywords: list[str] = field(default_factory=list)
+    priority_keywords: list[str] = field(default_factory=list)
     budget_min_krw: int | None = None
     budget_max_krw: int | None = None
     min_days_to_deadline: int = 5
@@ -73,6 +74,7 @@ def load_config(path: Path | None = None) -> Config:
         notion_database_id=str(notion.get("database_id") or ""),
         include_keywords=[str(k) for k in filters["include_keywords"]],
         exclude_keywords=[str(k) for k in filters.get("exclude_keywords") or []],
+        priority_keywords=[str(k) for k in filters.get("priority_keywords") or []],
         budget_min_krw=filters.get("budget_min_krw"),
         budget_max_krw=filters.get("budget_max_krw"),
         min_days_to_deadline=int(filters.get("min_days_to_deadline", 5)),

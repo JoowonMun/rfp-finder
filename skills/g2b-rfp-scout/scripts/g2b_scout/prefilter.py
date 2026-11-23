@@ -39,7 +39,8 @@ def passes(notice: Notice, cfg: Config, now: datetime) -> bool:
 def _priority(n: Notice, cfg: Config):
     has_exclude = keyword_hits(n, cfg.exclude_keywords) > 0
     deadline = n.deadline or datetime.max
-    return (has_exclude, -keyword_hits(n, cfg.include_keywords), n.deadline is None, deadline)
+    has_priority = keyword_hits(n, cfg.priority_keywords) > 0
+    return (not has_priority, has_exclude, -keyword_hits(n, cfg.include_keywords), n.deadline is None, deadline)
 
 
 def select_candidates(

@@ -14,6 +14,8 @@ team:
 filters:
   include_keywords: [AI, 인공지능, 생성형, AX, 디지털전환, ISP, ISMP, 데이터, LLM]
   exclude_keywords: [유지보수, 유지관리, 구매, 임차, 물품, 공사]
+  # 제목에 있으면 가장 먼저 분석 (팀이 특히 원하는 사업 유형)
+  priority_keywords: [ISP, ISMP, 전략, 컨설팅, AX, 로드맵, 마스터플랜, PMO]
   budget_min_krw: 50000000       # 비워두면 하한 없음
   budget_max_krw: 3000000000     # 비워두면 상한 없음
   min_days_to_deadline: 5        # 본공고에만 적용

@@ -96,3 +96,8 @@ def test_bid_service_key_separate_or_fallback(home, monkeypatch):
     s = load_secrets()
     assert s.bid_service_key == "bidkey"
     assert s.data_go_kr_service_key == "common"
+
+
+def test_priority_keywords_loaded(home):
+    (home / "config.yaml").write_text(MINIMAL.replace("  include_keywords: [AI]", "  include_keywords: [AI]\n  priority_keywords: [ISP, 전략]"), encoding="utf-8")
+    assert load_config().priority_keywords == ["ISP", "전략"]

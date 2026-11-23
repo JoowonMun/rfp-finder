@@ -87,3 +87,15 @@ def test_exclude_matched_sorted_after_clean():
     mixed = notice("AI 인공지능 플랫폼 유지보수", key="mixed", days=6)
     selected, _ = select_candidates([mixed, clean], set(), cfg(), NOW)
     assert [n.key for n in selected] == ["clean", "mixed"]
+
+
+def test_priority_keywords_go_first():
+    c = cfg(priority_keywords=["ISP", "전략", "컨설팅"])
+    many = notice("AI 인공지능 데이터 플랫폼", key="many", days=6)
+    consult = notice("AI 전환 ISP 수립", key="consult", days=40)
+    selected, _ = select_candidates([many, consult], set(), c, NOW)
+    assert [n.key for n in selected] == ["consult", "many"]
+
+
+def test_priority_keywords_default_empty():
+    assert cfg().priority_keywords == []
