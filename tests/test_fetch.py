@@ -90,3 +90,28 @@ def test_fetch_retries_once_then_fails(tmp_path):
 def test_fetch_no_attachments(tmp_path):
     r = fetch_documents(notice([]), tmp_path, session=Session({}))
     assert not r.ok and r.error == "첨부 없음"
+
+
+def bid_notice(atts, bid_no="R26BK01843717"):
+    return Notice(kind="bid", key=f"{bid_no}-000", bid_no=bid_no, bid_ord="000", title="데이터 파이프라인 구축",
+                  agency="a", budget_krw=None, deadline=datetime(2026, 12, 1), posted_at=None, category="",
+                  detail_url="", attachments=atts)
+
+
+def test_document_for_other_bid_is_rejected(tmp_path):
+    s = Session({"u1": Resp(hwpx_bytes("입찰공고번호: R26BK01845527-000 AI-OS 시범 서비스"),
+                            cd="attachment;filename=" + quote("공고문.hwpx") + ";")})
+    r = fetch_documents(bid_notice([Attachment("공고문", "u1")]), tmp_path, session=s)
+    assert not r.ok and "다른 공고" in r.error
+    assert r.rfp_url == "u1"
+
+
+def test_document_mentioning_own_bid_is_accepted(tmp_path):
+    s = Session({"u1": Resp(hwpx_bytes("입찰공고번호: R26BK01843717-000 참조 R26BK01845527"),
+                            cd="attachment;filename=" + quote("제안요청서.hwpx") + ";")})
+    assert fetch_documents(bid_notice([Attachment("x", "u1")]), tmp_path, session=s).ok
+
+
+def test_document_without_bid_numbers_is_accepted(tmp_path):
+    s = Session({"u1": Resp(hwpx_bytes("과업 내용"), cd="attachment;filename=" + quote("제안요청서.hwpx") + ";")})
+    assert fetch_documents(bid_notice([Attachment("x", "u1")]), tmp_path, session=s).ok

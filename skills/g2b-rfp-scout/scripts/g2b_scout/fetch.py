@@ -34,6 +34,17 @@ def filename_from_disposition(cd: str | None) -> str | None:
     return unquote(m.group(1)).strip() if m else None
 
 
+_BID_NO = re.compile(r"R\d{2}BK\d{8}")
+
+
+def _for_other_bid(text: str, notice: Notice) -> bool:
+    """문서에 입찰공고번호가 나오는데 이 공고의 번호는 하나도 없으면 다른 공고 문서로 본다."""
+    if notice.kind != "bid":
+        return False
+    found = set(_BID_NO.findall(text))
+    return bool(found) and notice.bid_no not in found
+
+
 def _download(url: str, session) -> requests.Response | None:
     for _ in range(2):
         try:
@@ -73,6 +84,9 @@ def fetch_documents(notice: Notice, out_dir: Path, session=requests) -> DocResul
     for name in pick_rfp(list(saved)):
         path, url = saved[name]
         result = convert(path)
+        if result.ok and _for_other_bid(result.text, notice):
+            errors.append(f"{name}: 다른 공고의 문서로 보임(나라장터 첨부 오류 가능)")
+            continue
         if result.ok:
             excerpt = folder / "excerpt.txt"
             excerpt.write_text(make_excerpt(result.text), encoding="utf-8")
