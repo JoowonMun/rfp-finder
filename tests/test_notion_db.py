@@ -191,9 +191,9 @@ def test_two_columns_fit_and_gaps():
     assert lbox["color"] == "green_background" and rbox["color"] == "red_background"
     assert lbox["rich_text"] == []
     lk, rk = lbox["children"], rbox["children"]
-    assert lk[0]["type"] == "heading_3" and _plain(lk[0]["heading_3"]["rich_text"]) == "✅ 우리 팀과 맞는 점"
+    assert lk[0]["type"] == "heading_3" and _plain(lk[0]["heading_3"]["rich_text"]) == "우리 팀과 맞는 점"
     assert lk[1]["type"] == "bulleted_list_item" and _plain(lk[1]["bulleted_list_item"]["rich_text"]) == "ISP 경험"
-    assert _plain(rk[0]["heading_3"]["rich_text"]) == "⚠️ 안 맞는 점·리스크"
+    assert _plain(rk[0]["heading_3"]["rich_text"]) == "안 맞는 점·리스크"
     assert _plain(rk[1]["bulleted_list_item"]["rich_text"]) == "구축 일부 포함"
 
 

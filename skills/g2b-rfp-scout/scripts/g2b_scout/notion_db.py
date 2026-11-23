@@ -220,7 +220,8 @@ def _list_box(title: str, items, emoji: str, color: str) -> dict:
     단(column) 안의 콜아웃 자식은 3단계 중첩이라 페이지 생성 때 못 넣는다 → split_deep 이 떼어내
     create_entry 가 페이지를 만든 뒤 콜아웃에 덧붙인다."""
     items = [str(i) for i in (items or [])] or ["-"]
-    kids = [_block("heading_3", f"{emoji} {title}"), *(_block("bulleted_list_item", i) for i in items)]
+    # 이모지는 콜아웃 아이콘에만 (제목에 또 넣으면 중복으로 보임)
+    kids = [_block("heading_3", title), *(_block("bulleted_list_item", i) for i in items)]
     return {"object": "block", "type": "callout",
             "callout": {"rich_text": [], "icon": {"type": "emoji", "emoji": emoji}, "color": color, "children": kids}}
 
