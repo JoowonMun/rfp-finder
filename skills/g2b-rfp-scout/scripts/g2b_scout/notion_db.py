@@ -167,6 +167,28 @@ def _deadline_card(notice: Notice, today: date) -> dict:
                  "⏰", "orange_background")
 
 
+OVERVIEW_FIELDS = [("client", "발주"), ("content", "내용"), ("period", "기간"), ("budget", "예산"), ("contract", "계약")]
+
+
+def _overview_box(overview) -> dict:
+    """사업 개요 상자. 객체면 '항목명(굵게)  값' 한 줄씩, 문자열이면 그대로."""
+    if not isinstance(overview, dict):
+        return _callout(str(overview or "-"), "📄", "default")
+    rich = []
+    for key, label in OVERVIEW_FIELDS:
+        value = str(overview.get(key) or "").strip()
+        if not value:
+            continue
+        if rich:
+            rich.append({"type": "text", "text": {"content": "\n"}})
+        rich.append({"type": "text", "text": {"content": label}, "annotations": {"bold": True}})
+        rich.append({"type": "text", "text": {"content": "  " + (_chunks16(value) or [""])[0]}})
+    if not rich:
+        return _callout("-", "📄", "default")
+    return {"object": "block", "type": "callout",
+            "callout": {"rich_text": rich, "icon": {"type": "emoji", "emoji": "📄"}, "color": "default"}}
+
+
 def _eval_lines(text: str | None) -> list[str]:
     """'기술 90 : 가격 10, 협상에 의한 계약' → ['기술 90', '가격 10', '협상에 의한 계약']"""
     parts = re.split(r"\s*[:：,/·\n]\s*", (text or "").strip())
@@ -196,7 +218,7 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date, ex
     blocks.append(_callout(analysis.get("fit_reason", ""), "💬", "gray_background"))
 
     blocks.append(_block("heading_3", "📌 사업 개요"))
-    blocks.append(_callout(str(d.get("overview") or "-"), "📄", "default"))
+    blocks.append(_overview_box(d.get("overview")))
 
     blocks.append(_block("heading_3", "📋 주요 요구사항"))
     reqs = d.get("requirements", []) or []

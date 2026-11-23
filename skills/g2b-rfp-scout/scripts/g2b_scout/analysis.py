@@ -26,6 +26,13 @@ def validate_analysis(data: dict) -> dict:
     for k in DETAIL_LIST:
         if not isinstance(detail[k], list):
             raise AnalysisError(f"detail.{k} 는 목록이어야 함")
+    ov = detail["overview"]
+    if isinstance(ov, dict):
+        allowed = {"client", "content", "period", "budget", "contract"}
+        if set(ov) - allowed or not all(isinstance(v, str) for v in ov.values()):
+            raise AnalysisError("detail.overview 객체는 client/content/period/budget/contract 문자열만 가질 수 있음")
+    elif not isinstance(ov, str):
+        raise AnalysisError("detail.overview 는 문자열 또는 객체여야 함")
     for r in detail["requirements"]:
         ok = isinstance(r, str) or (
             isinstance(r, dict) and isinstance(r.get("title"), str)

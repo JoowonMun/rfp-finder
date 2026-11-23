@@ -401,3 +401,22 @@ def test_overview_in_white_callout():
     box = blocks[h_idx + 1]
     assert box["type"] == "callout" and box["callout"]["color"] == "default"
     assert "기간 6개월, 예산 4.2억" in _plain(box["callout"]["rich_text"])
+
+
+OV = {"client": "농협대학교 산학협력단", "content": "NHU AX교육플랫폼 구축", "period": "계약일부터 2026년 12월 31일까지",
+      "budget": "5,500만 원", "contract": "일반경쟁입찰, 협상에 의한 계약"}
+
+
+def test_overview_object_renders_labeled_lines():
+    blocks = dash(overview=OV)
+    box = next(b for b in blocks if b["type"] == "callout" and b["callout"]["color"] == "default")
+    rich = box["callout"]["rich_text"]
+    assert _plain(rich) == "발주  농협대학교 산학협력단\n내용  NHU AX교육플랫폼 구축\n기간  계약일부터 2026년 12월 31일까지\n예산  5,500만 원\n계약  일반경쟁입찰, 협상에 의한 계약"
+    labels = [r["text"]["content"].strip() for r in rich if r.get("annotations", {}).get("bold")]
+    assert labels == ["발주", "내용", "기간", "예산", "계약"]
+
+
+def test_overview_object_skips_missing_fields():
+    blocks = dash(overview={"client": "A기관", "content": "구축"})
+    box = next(b for b in blocks if b["type"] == "callout" and b["callout"]["color"] == "default")
+    assert _plain(box["callout"]["rich_text"]) == "발주  A기관\n내용  구축"

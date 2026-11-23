@@ -71,3 +71,13 @@ def test_requirements_may_be_title_details_objects():
     bad["detail"]["requirements"] = [{"title": "로드맵", "details": "3개년"}]
     with pytest.raises(AnalysisError, match="requirements"):
         validate_analysis(bad)
+
+
+def test_overview_may_be_object():
+    ok = copy.deepcopy(GOOD)
+    ok["detail"]["overview"] = {"client": "A", "content": "B", "period": "C", "budget": "D", "contract": "E"}
+    validate_analysis(ok)
+    bad = copy.deepcopy(GOOD)
+    bad["detail"]["overview"] = {"client": 3}
+    with pytest.raises(AnalysisError, match="overview"):
+        validate_analysis(bad)
