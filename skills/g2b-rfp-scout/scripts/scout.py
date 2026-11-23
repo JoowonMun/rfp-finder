@@ -164,8 +164,22 @@ def _selected(run_dir: Path) -> list[Notice]:
 
 def cmd_fetch(args, ctx) -> dict:
     run_dir = Path(args.run)
+    api = ctx["api"] or g2b_api
+    selected = _selected(run_dir)
+    # 목록 응답에 첨부 URL이 없던 입찰공고는 첨부파일정보 오퍼레이션으로 보충
+    missing = [n for n in selected if n.kind == "bid" and not n.attachments]
+    if missing:
+        secrets = load_secrets()
+        for n in missing:
+            try:
+                n.attachments = api.fetch_bid_attachments(secrets.bid_service_key, n.bid_no, n.bid_ord)
+            except g2b_api.G2BApiError as e:
+                _log(f"fetch {n.key}: 첨부정보 조회 실패 {e}")
+        cands = _read_json(run_dir / "candidates.json")
+        cands["selected"] = [n.to_dict() for n in selected]
+        _write_json(run_dir / "candidates.json", cands)
     docs = {}
-    for n in _selected(run_dir):
+    for n in selected:
         docs[n.key] = fetch_documents(n, run_dir / "docs").to_dict()
         _log(f"fetch {n.key}: ok={docs[n.key]['ok']} {docs[n.key].get('error') or ''}")
     _write_json(run_dir / "docs.json", docs)

@@ -20,7 +20,7 @@ def _bid_fixture():
 
 
 def test_parse_bid_from_fixture():
-    item = parse_items(_bid_fixture())[0]
+    item = next(i for i in parse_items(_bid_fixture()) if i.get("ntceSpecDocUrl1"))
     n = parse_bid(item)
     assert n.kind == "bid"
     assert n.key == f"{n.bid_no}-{n.bid_ord}"
@@ -108,3 +108,28 @@ def test_header_error_code_raises():
             return FakeResp({"response": {"header": {"resultCode": "07", "resultMsg": "입력범위값 초과 에러"}}})
     with pytest.raises(G2BApiError, match="07"):
         g2b_api.fetch_prespecs("K", date(2026, 11, 17), date(2026, 11, 20), session=S())
+
+
+def test_fetch_bid_notices_drops_cancelled():
+    base = parse_items(_bid_fixture())[0]
+
+    class S:
+        def get(self, url, params=None, timeout=None):
+            items = [dict(base, bidNtceNo="A", ntceKindNm="등록공고"), dict(base, bidNtceNo="B", ntceKindNm="취소공고"),
+                     dict(base, bidNtceNo="C", ntceKindNm="재공고")]
+            return FakeResp({"response": {"header": {"resultCode": "00"}, "body": {"items": items, "totalCount": 3}}})
+    out = g2b_api.fetch_bid_notices("K", date(2026, 11, 17), date(2026, 11, 20), session=S())
+    assert [n.bid_no for n in out] == ["A", "C"]
+
+
+def test_fetch_bid_attachments():
+    calls = []
+
+    class S:
+        def get(self, url, params=None, timeout=None):
+            calls.append((url, params))
+            return FakeResp(_load("bid_atch_file.json"))
+    atts = g2b_api.fetch_bid_attachments("K", "R26BK01837750", "000", session=S())
+    assert [a.name for a in atts] == ["관리용역 사업(공고문).hwpx", "관리용역 제안요청서.hwpx"]
+    assert calls[0][0].endswith("/getBidPblancListInfoAtchFileInfo02")
+    assert calls[0][1]["bidNtceNo"] == "R26BK01837750" and calls[0][1]["inqryDiv"] == 2

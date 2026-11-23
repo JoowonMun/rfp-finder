@@ -19,6 +19,7 @@ OUT = ROOT / "tests" / "fixtures" / "api"
 
 CANDIDATES = {
     "bid_service": [
+        "https://apis.data.go.kr/1230000/ad/BidPublicInfoService02/getBidPblancListInfoServc02",
         "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc",
         "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServcPPSSrch",
         "https://apis.data.go.kr/1230000/BidPublicInfoService05/getBidPblancListInfoServc",
@@ -72,6 +73,10 @@ def main() -> int:
                 continue
             code = (data.get("response", {}).get("header", {}) or {}).get("resultCode")
             if r.status_code == 200 and code == "00":
+                if (OUT / f"{name}.json").exists():
+                    print(f"  -> {name}.json 이미 있음 (테스트 고정용, 덮어쓰지 않음)")
+                    saved = True
+                    break
                 (OUT / f"{name}.json").write_text(
                     json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
                 )

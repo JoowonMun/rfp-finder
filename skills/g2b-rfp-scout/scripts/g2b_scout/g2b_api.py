@@ -7,7 +7,8 @@ import requests
 
 from .models import Attachment, Notice
 
-BID_URL = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc"
+BID_URL = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService02/getBidPblancListInfoServc02"
+BID_ATCH_URL = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService02/getBidPblancListInfoAtchFileInfo02"
 PRESPEC_URL = "https://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService/getPublicPrcureThngInfoServc"
 PAGE_SIZE = 100
 TIMEOUT = 30
@@ -113,7 +114,7 @@ def _check(resp, payload: dict) -> None:
         raise G2BApiError(f"조달청 API 오류 {code}: {header.get('resultMsg')}, HTTP {resp.status_code}")
 
 
-def _fetch_all(url: str, parser, service_key: str, start: date, end: date, session) -> list[Notice]:
+def _fetch_all(url: str, parser, service_key: str, start: date, end: date, session, keep=lambda item: True) -> list[Notice]:
     out: list[Notice] = []
     page = 1
     while True:
@@ -136,7 +137,7 @@ def _fetch_all(url: str, parser, service_key: str, start: date, end: date, sessi
             raise G2BApiError(f"조달청 API 응답이 JSON이 아님 (HTTP {resp.status_code})") from None
         _check(resp, payload)
         items = parse_items(payload)
-        out.extend(parser(i) for i in items)
+        out.extend(parser(i) for i in items if keep(i))
         total = int(((payload.get("response") or {}).get("body") or {}).get("totalCount") or 0)
         if not items or page * PAGE_SIZE >= total:
             return out
@@ -144,7 +145,26 @@ def _fetch_all(url: str, parser, service_key: str, start: date, end: date, sessi
 
 
 def fetch_bid_notices(service_key: str, start: date, end: date, session=requests) -> list[Notice]:
-    return _fetch_all(BID_URL, parse_bid, service_key, start, end, session)
+    """용역 입찰공고. 취소공고는 제외."""
+    return _fetch_all(BID_URL, parse_bid, service_key, start, end, session,
+                      keep=lambda i: (i.get("ntceKindNm") or "").strip() != "취소공고")
+
+
+def fetch_bid_attachments(service_key: str, bid_no: str, bid_ord: str, session=requests) -> list[Attachment]:
+    """목록 응답에 첨부 URL이 없는 공고용: 첨부파일정보 전용 오퍼레이션."""
+    params = {"serviceKey": service_key, "pageNo": 1, "numOfRows": 50, "type": "json",
+              "inqryDiv": 2, "bidNtceNo": bid_no, "bidNtceOrd": bid_ord}
+    try:
+        resp = session.get(BID_ATCH_URL, params=params, timeout=TIMEOUT)
+        payload = resp.json()
+    except (requests.RequestException, ValueError):
+        raise G2BApiError("첨부파일정보 조회 실패") from None
+    _check(resp, payload)
+    return [
+        Attachment(name=(i.get("atchFileNm") or "").strip() or f"첨부{n}", url=i["atchFileUrl"].strip())
+        for n, i in enumerate(parse_items(payload), 1)
+        if (i.get("atchFileUrl") or "").strip()
+    ]
 
 
 def fetch_prespecs(service_key: str, start: date, end: date, session=requests) -> list[Notice]:

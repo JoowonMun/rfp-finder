@@ -1,0 +1,7 @@
+{"response": {"header": {"resultCode": "00", "resultMsg": "정상"}, "body": {"items": [
+  {"bidNtceNo": "R26BK01837750", "bidNtceOrd": "000", "atchSno": "1", "atchDocDivNm": "공고서",
+   "atchFileNm": "관리용역 사업(공고문).hwpx", "atchFileUrl": "https://www.g2b.go.kr/pn/pnp/pnpe/UntyAtchFile/downloadFile.do?bidPbancNo=R26BK01837750&bidPbancOrd=000&fileType=&fileSeq=1&prcmBsneSeCd=03"},
+  {"bidNtceNo": "R26BK01837750", "bidNtceOrd": "000", "atchSno": "3", "atchDocDivNm": "과업지시서",
+   "atchFileNm": "관리용역 제안요청서.hwpx", "atchFileUrl": "https://www.g2b.go.kr/pn/pnp/pnpe/UntyAtchFile/downloadFile.do?bidPbancNo=R26BK01837750&bidPbancOrd=000&fileType=&fileSeq=3&prcmBsneSeCd=03"},
+  {"bidNtceNo": "R26BK01837750", "bidNtceOrd": "000", "atchSno": "4", "atchDocDivNm": "기타", "atchFileNm": "", "atchFileUrl": ""}
+], "numOfRows": 20, "pageNo": 1, "totalCount": 3}}}

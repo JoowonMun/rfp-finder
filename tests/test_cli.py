@@ -173,3 +173,23 @@ def test_setup_notion_writes_database_id(home, capsys):
     code, out = run(capsys, ["setup-notion", "--parent-page", "1f2e3d4c5b6a79881f2e3d4c5b6a7988"], notion=N())
     assert out["database_id"] == "new-db-id"
     assert "database_id: new-db-id" in (home / "config.yaml").read_text(encoding="utf-8")
+
+
+def test_fetch_fills_missing_bid_attachments(home, capsys, monkeypatch):
+    no_att = mk("B9", "AI 전략")
+    no_att.attachments = []
+    api = FakeApi([no_att], [])
+    api.fetch_bid_attachments = lambda key, no, ord_: [Attachment("제안요청서.hwpx", "https://f/B9")]
+    _, out = run(capsys, ["candidates"], api=api, notion=FakeNotion())
+    seen = {}
+
+    def fake_fetch(notice, out_dir, session=None):
+        from g2b_scout.models import DocResult
+        seen[notice.key] = [a.url for a in notice.attachments]
+        return DocResult(ok=False, error="test")
+    monkeypatch.setattr(scout, "fetch_documents", fake_fetch)
+    run(capsys, ["fetch", "--run", out["run_dir"]], api=api)
+    assert seen == {"B9": ["https://f/B9"]}
+    from pathlib import Path
+    saved = json.loads((Path(out["run_dir"]) / "candidates.json").read_text(encoding="utf-8"))
+    assert saved["selected"][0]["attachments"][0]["url"] == "https://f/B9"
