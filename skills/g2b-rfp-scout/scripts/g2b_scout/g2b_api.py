@@ -1,7 +1,7 @@
 """조달청 공공데이터포털 OpenAPI 클라이언트. 필드 이름은 docs/api-notes.md 참고."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import requests
 
@@ -10,7 +10,7 @@ from .models import Attachment, Notice
 BID_URL = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService02/getBidPblancListInfoServc02"
 BID_ATCH_URL = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService02/getBidPblancListInfoAtchFileInfo02"
 PRESPEC_URL = "https://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService/getPublicPrcureThngInfoServc"
-PAGE_SIZE = 100
+PAGE_SIZE = 999  # API 허용 최대치. 30일치(수만 건)도 수십 번 요청으로 끝남
 TIMEOUT = 30
 
 
@@ -114,7 +114,24 @@ def _check(resp, payload: dict) -> None:
         raise G2BApiError(f"조달청 API 오류 {code}: {header.get('resultMsg')}, HTTP {resp.status_code}")
 
 
+WINDOW_DAYS = 7  # 긴 조회 기간은 API가 거부할 수 있어 7일 단위로 나눠 요청
+
+
 def _fetch_all(url: str, parser, service_key: str, start: date, end: date, session, keep=lambda item: True) -> list[Notice]:
+    out: list[Notice] = []
+    seen: set[str] = set()
+    cur = start
+    while cur <= end:
+        win_end = min(cur + timedelta(days=WINDOW_DAYS - 1), end)
+        for n in _fetch_window(url, parser, service_key, cur, win_end, session, keep):
+            if n.key not in seen:
+                seen.add(n.key)
+                out.append(n)
+        cur = win_end + timedelta(days=1)
+    return out
+
+
+def _fetch_window(url: str, parser, service_key: str, start: date, end: date, session, keep) -> list[Notice]:
     out: list[Notice] = []
     page = 1
     while True:

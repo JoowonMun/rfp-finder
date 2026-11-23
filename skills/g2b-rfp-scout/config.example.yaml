@@ -20,7 +20,7 @@ filters:
   include_pre_spec: true         # 사전규격 포함 여부
 
 collect:
-  lookback_days: 3               # 정기 실행 주기보다 약간 길게
+  lookback_days: 30              # 최근 N일 등록 공고 중 마감 안 지난 것을 봄 (용역은 대부분 30일 안에 마감)
   max_per_run: 15                # 한 번에 분석할 공고 수 상한
 
 notion:

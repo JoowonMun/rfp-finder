@@ -133,3 +133,14 @@ def test_fetch_bid_attachments():
     assert [a.name for a in atts] == ["관리용역 사업(공고문).hwpx", "관리용역 제안요청서.hwpx"]
     assert calls[0][0].endswith("/getBidPblancListInfoAtchFileInfo02")
     assert calls[0][1]["bidNtceNo"] == "R26BK01837750" and calls[0][1]["inqryDiv"] == 2
+
+
+def test_fetch_splits_long_range_into_windows():
+    seen = []
+
+    class S:
+        def get(self, url, params=None, timeout=None):
+            seen.append((params["inqryBgnDt"], params["inqryEndDt"]))
+            return FakeResp({"response": {"header": {"resultCode": "00"}, "body": {"items": "", "totalCount": 0}}})
+    g2b_api.fetch_prespecs("K", date(2026, 11, 1), date(2026, 11, 20), session=S())
+    assert seen == [("202611010000", "202611072359"), ("202611080000", "202611142359"), ("202611150000", "202611202359")]

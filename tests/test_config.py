@@ -46,7 +46,7 @@ def test_load_config_defaults(home):
     assert cfg.budget_min_krw is None and cfg.budget_max_krw is None
     assert cfg.min_days_to_deadline == 5
     assert cfg.include_pre_spec is True
-    assert cfg.lookback_days == 3
+    assert cfg.lookback_days == 30
     assert cfg.max_per_run == 15
     assert cfg.max_upload_mb == 5
     assert cfg.notion_database_id == "abc123"

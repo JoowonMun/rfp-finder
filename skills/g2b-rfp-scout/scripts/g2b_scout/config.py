@@ -26,7 +26,7 @@ class Config:
     budget_max_krw: int | None = None
     min_days_to_deadline: int = 5
     include_pre_spec: bool = True
-    lookback_days: int = 3
+    lookback_days: int = 30
     max_per_run: int = 15
     max_upload_mb: int = 5
 
@@ -77,7 +77,7 @@ def load_config(path: Path | None = None) -> Config:
         budget_max_krw=filters.get("budget_max_krw"),
         min_days_to_deadline=int(filters.get("min_days_to_deadline", 5)),
         include_pre_spec=bool(filters.get("include_pre_spec", True)),
-        lookback_days=int(collect.get("lookback_days", 3)),
+        lookback_days=int(collect.get("lookback_days", 30)),
         max_per_run=int(collect.get("max_per_run", 15)),
         max_upload_mb=int(notion.get("max_upload_mb", 5)),
     )
