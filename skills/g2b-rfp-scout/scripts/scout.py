@@ -145,7 +145,9 @@ def cmd_candidates(args, ctx) -> dict:
         "overflow": [n.to_dict() for n in overflow],
         "warnings": warnings,
     })
+    sources = 1 + int(cfg.include_pre_spec)
     result = {
+        "ok": not (len(warnings) >= sources and not notices),  # 수집이 전부 실패하면 '새 공고 없음'이 아님
         "run_dir": str(run_dir), "collected": len(notices), "new": new_count,
         "selected": len(selected), "overflow": len(overflow), "warnings": warnings,
     }
@@ -175,11 +177,14 @@ def cmd_fetch(args, ctx) -> dict:
         _write_json(run_dir / "candidates.json", cands)
     docs = {}
     for n in selected:
-        docs[n.key] = fetch_documents(n, run_dir / "docs").to_dict()
+        try:
+            docs[n.key] = fetch_documents(n, run_dir / "docs").to_dict()
+        except Exception as e:  # noqa: BLE001 - 한 공고 실패가 전체를 멈추지 않게
+            docs[n.key] = DocResult(ok=False, error=f"{type(e).__name__}: {e}"[:300]).to_dict()
         _log(f"fetch {n.key}: ok={docs[n.key]['ok']} {docs[n.key].get('error') or ''}")
     _write_json(run_dir / "docs.json", docs)
     ok = sum(1 for d in docs.values() if d["ok"])
-    return {"ok": ok, "failed": len(docs) - ok, "docs": {k: {"ok": d["ok"], "excerpt_path": d["excerpt_path"]} for k, d in docs.items()}}
+    return {"converted": ok, "failed": len(docs) - ok, "docs": {k: {"ok": d["ok"], "excerpt_path": d["excerpt_path"]} for k, d in docs.items()}}
 
 
 def cmd_publish(args, ctx) -> dict:
@@ -192,7 +197,7 @@ def cmd_publish(args, ctx) -> dict:
         raise CliError(f"candidates.json 에 없는 키: {args.key}")
     try:
         analysis = validate_analysis(_read_json(run_dir / "analysis" / f"{safe_filename(args.key)}.json"))
-    except AnalysisError as e:
+    except (AnalysisError, ValueError) as e:  # ValueError: JSON 문법 오류
         raise CliError(f"분석 JSON 오류: {e}") from None
     doc_raw = _read_json(run_dir / "docs.json", default={}).get(args.key)
     doc = DocResult.from_dict(doc_raw) if doc_raw else DocResult(ok=False, error="문서 미처리")
@@ -282,6 +287,10 @@ def main(argv=None, *, api=None, notion=None, now: datetime | None = None) -> in
     except (CliError, ConfigError, NotionError, g2b_api.G2BApiError) as e:
         _log(f"{args.cmd} 오류: {e}")
         _emit({"ok": False, "error": str(e)})
+        return 1
+    except Exception as e:  # noqa: BLE001 - 마지막 안전망: 어떤 경우에도 마지막 줄은 JSON
+        _log(f"{args.cmd} 예기치 못한 오류: {type(e).__name__}: {e}")
+        _emit({"ok": False, "error": f"예기치 못한 오류 {type(e).__name__}: {e}"})
         return 1
     _emit(result)
     return 0 if result.get("ok", True) else 1

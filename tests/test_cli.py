@@ -219,3 +219,45 @@ def test_candidates_skips_locally_excluded(home, capsys):
     api = FakeApi([mk("B1", "AI 전략"), mk("B2", "AI 기획")], [])
     code, out = run(capsys, ["candidates"], api=api, notion=FakeNotion())
     assert out["selected"] == 1
+
+
+def test_publish_malformed_json_is_analysis_error(home, capsys):
+    notion = FakeNotion()
+    run_dir = _prepare_run(home, capsys, notion)
+    from pathlib import Path
+    (Path(run_dir) / "analysis" / "B1.json").write_text('{"fit": 3,}', encoding="utf-8")
+    code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1"], notion=notion)
+    assert code == 1 and out["error"].startswith("분석 JSON 오류")
+
+
+def test_fetch_one_notice_crash_does_not_abort_run(home, capsys, monkeypatch):
+    api = FakeApi([mk("B1", "AI 전략"), mk("B2", "AI 기획")], [])
+    _, out = run(capsys, ["candidates"], api=api, notion=FakeNotion())
+    from g2b_scout.models import DocResult
+
+    def flaky(notice, out_dir, session=None):
+        if notice.key == "B1":
+            raise OSError("disk full")
+        return DocResult(ok=False, error="x")
+    monkeypatch.setattr(scout, "fetch_documents", flaky)
+    code, res = run(capsys, ["fetch", "--run", out["run_dir"]], api=api)
+    assert code == 0 and res["failed"] == 2
+    from pathlib import Path
+    docs = json.loads((Path(out["run_dir"]) / "docs.json").read_text(encoding="utf-8"))
+    assert "disk full" in docs["B1"]["error"]
+
+
+def test_unexpected_exception_still_emits_json(home, capsys):
+    class Boom(FakeNotion):
+        def existing_keys(self, db):
+            raise RuntimeError("unexpected")
+    code, out = run(capsys, ["candidates"], api=FakeApi([], []), notion=Boom())
+    assert code == 1 and out["ok"] is False and "unexpected" in out["error"]
+
+
+def test_candidates_fails_when_all_sources_fail(home, capsys):
+    class Down(FakeApi):
+        def fetch_prespecs(self, key, start, end):
+            raise G2BApiError("사전규격 다운")
+    code, out = run(capsys, ["candidates"], api=Down([], [], bid_error=True), notion=FakeNotion())
+    assert code == 1 and out["ok"] is False and len(out["warnings"]) == 2

@@ -43,6 +43,15 @@ class Secrets:
             self.bid_service_key = self.data_go_kr_service_key
 
 
+def _budget(value, name: str) -> int | None:
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        return int(str(value).replace(",", "").strip())
+    except ValueError:
+        raise ConfigError(f"filters.{name} 는 숫자(원 단위)여야 합니다: {value!r}") from None
+
+
 def config_path() -> Path:
     return paths.home() / "config.yaml"
 
@@ -75,8 +84,8 @@ def load_config(path: Path | None = None) -> Config:
         include_keywords=[str(k) for k in filters["include_keywords"]],
         exclude_keywords=[str(k) for k in filters.get("exclude_keywords") or []],
         priority_keywords=[str(k) for k in filters.get("priority_keywords") or []],
-        budget_min_krw=filters.get("budget_min_krw"),
-        budget_max_krw=filters.get("budget_max_krw"),
+        budget_min_krw=_budget(filters.get("budget_min_krw"), "budget_min_krw"),
+        budget_max_krw=_budget(filters.get("budget_max_krw"), "budget_max_krw"),
         min_days_to_deadline=int(filters.get("min_days_to_deadline", 5)),
         include_pre_spec=bool(filters.get("include_pre_spec", True)),
         lookback_days=int(collect.get("lookback_days", 30)),
@@ -90,11 +99,11 @@ _OPTIONAL_NAMES = ("DATA_GO_KR_BID_SERVICE_KEY",)
 
 
 def load_secrets() -> Secrets:
-    """환경변수 → 현재 폴더 .env → 홈 .env 순으로 먼저 찾은 값."""
+    """환경변수 → 홈 .env → 현재 폴더 .env(개발용) 순으로 먼저 찾은 값."""
     sources = [
         dict(os.environ),
-        dotenv_values(Path.cwd() / ".env"),
         dotenv_values(paths.home() / ".env"),
+        dotenv_values(Path.cwd() / ".env"),
     ]
     found: dict[str, str] = {}
     for name in _SECRET_NAMES + _OPTIONAL_NAMES:

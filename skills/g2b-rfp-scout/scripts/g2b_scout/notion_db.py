@@ -146,7 +146,7 @@ def _deadline_card(notice: Notice, today: date) -> str:
     days = (notice.deadline.date() - today).days
     dday = "D-day" if days == 0 else (f"D-{days}" if days > 0 else f"D+{-days}")
     d = notice.deadline
-    return "\n".join([label, dday, f"{d:%m.%d}({WEEKDAY[d.weekday()]}) {d:%H:%M}"])
+    return "\n".join([label, f"{dday} ({today:%m.%d} 기준)", f"{d:%m.%d}({WEEKDAY[d.weekday()]}) {d:%H:%M}"])
 
 
 def _rows(cells: list[list[str]]) -> list[dict]:
@@ -232,11 +232,17 @@ class NotionClient:
 
     def _request(self, method: str, path: str, *, json=None, files=None) -> dict:
         for attempt in range(4):
-            resp = self.session.request(
-                method, f"{API}{path}", headers=self._headers(files is None), json=json, files=files, timeout=60
-            )
-            if resp.status_code == 429 and attempt < 3:
-                time.sleep(float(resp.headers.get("Retry-After") or 1))
+            try:
+                resp = self.session.request(
+                    method, f"{API}{path}", headers=self._headers(files is None), json=json, files=files, timeout=60
+                )
+            except requests.RequestException as e:
+                if attempt < 3:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise NotionError(f"노션 연결 실패: {type(e).__name__}") from None
+            if (resp.status_code == 429 or resp.status_code >= 500) and attempt < 3:
+                time.sleep(float(resp.headers.get("Retry-After") or 2 ** attempt))
                 continue
             if resp.status_code >= 400:
                 try:

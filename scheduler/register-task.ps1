@@ -9,6 +9,7 @@
 #>
 param(
     [string]$Time = "08:30",
+    [string]$WorkingDir = "",   # 기본: %USERPROFILE%\.g2b-rfp-scout (개발 중 .env 가 저장소에 있으면 그 폴더)
     [switch]$Unregister
 )
 
@@ -29,15 +30,17 @@ if (-not $claude) {
 $home_ = Join-Path $env:USERPROFILE ".g2b-rfp-scout"
 $logs = Join-Path $home_ "logs"
 New-Item -ItemType Directory -Force $logs | Out-Null
+if (-not $WorkingDir) { $WorkingDir = $home_ }
 
-# 무인 실행: 스크립트 실행(python), 파일 읽기/쓰기만 허용
+# 무인 실행: python 실행(Bash/PowerShell 도구 모두), 파일 읽기/쓰기만 허용.
+# 실행 폴더(runs) 가 있는 설정 폴더를 --add-dir 로 열어 줘야 분석 파일을 쓸 수 있다.
 $prompt = "/g2b-rfp-scout 무인 실행입니다. 질문하지 말고 끝까지 진행한 뒤 결과를 요약하세요."
-$allowed = "'Bash(python:*)' 'Read' 'Write'"
+$allowed = "'Bash(python:*)' 'PowerShell(python:*)' 'Read' 'Write'"
 $cmd = "`$log = Join-Path '$logs' ('scheduled-' + (Get-Date -Format yyyyMMdd) + '.log'); " +
        "Set-Location '$WorkingDir'; " +
-       "& '$claude' -p '$prompt' --allowedTools $allowed *>> `$log"
+       "& '$claude' -p '$prompt' --add-dir '$home_' --allowedTools $allowed *>> `$log"
 
-$action = New-ScheduledTaskAction -Execute "powershell.exe" `
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -WorkingDirectory $WorkingDir `
     -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"$cmd`""
 $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At $Time
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2)

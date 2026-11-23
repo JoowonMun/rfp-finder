@@ -322,3 +322,19 @@ def test_text_limits_count_utf16_units():
     assert all(_u16(_plain(p["paragraph"]["rich_text"])) <= 2000 for p in tog["toggle"]["children"])
     p = build_properties(notice(), analysis(summary=wide * 1500), OK_DOC, None, TODAY)
     assert _u16(text(p, "한줄 요약")) <= 2000
+
+
+def test_network_error_becomes_notion_error():
+    import requests as rq
+    from g2b_scout.notion_db import NotionError
+
+    class Down:
+        def request(self, *a, **kw):
+            raise rq.ConnectionError("offline")
+    with pytest.raises(NotionError, match="연결"):
+        NotionClient("tok", session=Down()).existing_keys("db1")
+
+
+def test_deadline_card_states_reference_date():
+    texts, _ = _cards(dash())
+    assert "11.20 기준" in texts[2]

@@ -73,7 +73,7 @@ def test_secrets_lookup_order(home, tmp_path, monkeypatch):
     (home / ".env").write_text("DATA_GO_KR_SERVICE_KEY=from_home\nNOTION_TOKEN=n_home\n", encoding="utf-8")
     (tmp_path / ".env").write_text("DATA_GO_KR_SERVICE_KEY=from_cwd\n", encoding="utf-8")
     s = load_secrets()
-    assert s.data_go_kr_service_key == "from_cwd"
+    assert s.data_go_kr_service_key == "from_home"  # 홈 .env 가 현재 폴더 .env 보다 우선
     assert s.notion_token == "n_home"
     monkeypatch.setenv("NOTION_TOKEN", "n_env")
     assert load_secrets().notion_token == "n_env"
@@ -101,3 +101,20 @@ def test_bid_service_key_separate_or_fallback(home, monkeypatch):
 def test_priority_keywords_loaded(home):
     (home / "config.yaml").write_text(MINIMAL.replace("  include_keywords: [AI]", "  include_keywords: [AI]\n  priority_keywords: [ISP, 전략]"), encoding="utf-8")
     assert load_config().priority_keywords == ["ISP", "전략"]
+
+
+def test_budget_must_be_number(home):
+    (home / "config.yaml").write_text(MINIMAL.replace("  include_keywords: [AI]", "  include_keywords: [AI]\n  budget_min_krw: 5천만"), encoding="utf-8")
+    with pytest.raises(ConfigError, match="budget_min_krw"):
+        load_config()
+
+
+def test_budget_numeric_string_ok(home):
+    (home / "config.yaml").write_text(MINIMAL.replace("  include_keywords: [AI]", "  include_keywords: [AI]\n  budget_max_krw: '3,000,000,000'"), encoding="utf-8")
+    assert load_config().budget_max_krw == 3_000_000_000
+
+
+def test_home_env_beats_cwd_env(home, tmp_path):
+    (home / ".env").write_text("DATA_GO_KR_SERVICE_KEY=home\nNOTION_TOKEN=n_home\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("NOTION_TOKEN=other_project_token\n", encoding="utf-8")
+    assert load_secrets().notion_token == "n_home"
