@@ -69,7 +69,7 @@ def _chunks16(s: str, limit: int = TEXT_LIMIT) -> list[str]:
 
 
 def _rt(s: str) -> list[dict]:
-    s = (_chunks16(s or "") or [""])[0]
+    s = (_chunks16((s or "").replace("**", "")) or [""])[0]
     return [{"type": "text", "text": {"content": s}}] if s else []
 
 
@@ -114,8 +114,28 @@ FIT_CARD = {3: ("바로 검토", "green_background"), 2: ("조건부 검토", "y
 WEEKDAY = "월화수목금토일"
 
 
+_BOLD = re.compile(r"\*\*(.+?)\*\*", re.S)
+
+
+def _rich(s: str) -> list[dict]:
+    """'**키워드**' 표시를 굵은 글씨로 바꾼 rich_text. 표시 없는 글은 그대로."""
+    out, pos = [], 0
+    for m in _BOLD.finditer(s or ""):
+        out += [(s[pos:m.start()], False), (m.group(1), True)]
+        pos = m.end()
+    out.append(((s or "")[pos:], False))
+    rich = []
+    for text, bold in out:
+        for chunk in _chunks16(text.replace("**", "")):
+            r = {"type": "text", "text": {"content": chunk}}
+            if bold:
+                r["annotations"] = {"bold": True}
+            rich.append(r)
+    return rich[:100]
+
+
 def _block(kind: str, content: str, *, bold: bool = False, **extra) -> dict:
-    rich = _rt(content)
+    rich = _rich(content)
     if bold:
         for r in rich:
             r["annotations"] = {"bold": True}
@@ -170,20 +190,23 @@ OVERVIEW_FIELDS = [("client", "발주"), ("content", "내용"), ("period", "기�
 
 
 def _overview_box(overview) -> dict:
-    """사업 개요. 객체면 '항목명(굵게) | 값' 2열 표, 문자열이면 흰 콜아웃."""
+    """사업 개요 흰 콜아웃. 객체면 '항목명(굵게)  값' 한 줄씩, 문자열이면 그대로.
+    (표는 노션 API로 너비를 못 정해 좁게 나오므로 쓰지 않음)"""
     if not isinstance(overview, dict):
         return _callout(str(overview or "-"), "📄", "default")
-    rows = []
+    rich = []
     for key, label in OVERVIEW_FIELDS:
-        value = str(overview.get(key) or "").strip()
+        value = str(overview.get(key) or "").strip().replace("**", "")
         if not value:
             continue
-        head = [{"type": "text", "text": {"content": label}, "annotations": {"bold": True}}]
-        rows.append({"object": "block", "type": "table_row", "table_row": {"cells": [head, _rt(value)]}})
-    if not rows:
+        if rich:
+            rich.append({"type": "text", "text": {"content": "\n"}})
+        rich.append({"type": "text", "text": {"content": label}, "annotations": {"bold": True}})
+        rich.append({"type": "text", "text": {"content": "  " + (_chunks16(value) or [""])[0]}})
+    if not rich:
         return _callout("-", "📄", "default")
-    return {"object": "block", "type": "table",
-            "table": {"table_width": 2, "has_column_header": False, "has_row_header": True, "children": rows}}
+    return {"object": "block", "type": "callout",
+            "callout": {"rich_text": rich, "icon": {"type": "emoji", "emoji": "📄"}, "color": "default"}}
 
 
 def _eval_lines(text: str | None) -> list[str]:

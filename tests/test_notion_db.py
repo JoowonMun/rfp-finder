@@ -317,8 +317,10 @@ def _u16(s):
 
 def test_text_limits_count_utf16_units():
     wide = "\U000f02b1"  # HWP 사용자 정의 기호: UTF-16 2칸
-    _, rows = _overview_rows(dash(overview={"content": ("가" * 1999 + wide) * 3}))
-    assert _u16(rows[0][1]) <= 2000
+    blocks = dash(why_fit=[("가" * 1999 + wide) * 3])
+    cl = [b for b in blocks if b["type"] == "column_list"][1]
+    item = cl["column_list"]["children"][0]["column"]["children"][1]["bulleted_list_item"]
+    assert all(_u16(r["text"]["content"]) <= 2000 for r in item["rich_text"])
     p = build_properties(notice(), analysis(summary=wide * 1500), OK_DOC, None, TODAY)
     assert _u16(text(p, "한줄 요약")) <= 2000
 
@@ -393,30 +395,50 @@ OV = {"client": "농협대학교 산학협력단", "content": "NHU AX교육플�
       "budget": "5,500만 원", "contract": "일반경쟁입찰, 협상에 의한 계약"}
 
 
-def _overview_rows(blocks):
+def _overview_box(blocks):
     h_idx = next(k for k, b in enumerate(blocks) if b["type"] == "heading_3" and "사업 개요" in _plain(b["heading_3"]["rich_text"]))
-    table = blocks[h_idx + 1]
-    assert table["type"] == "table"
-    return table, [[_plain(c) for c in row["table_row"]["cells"]] for row in table["table"]["children"]]
+    box = blocks[h_idx + 1]
+    assert box["type"] == "callout" and box["callout"]["color"] == "default"
+    return box["callout"]["rich_text"]
 
 
-def test_overview_object_renders_table():
-    table, rows = _overview_rows(dash(overview=OV))
-    t = table["table"]
-    assert t["table_width"] == 2 and t["has_row_header"] is True and t["has_column_header"] is False
-    assert rows == [["발주", "농협대학교 산학협력단"], ["내용", "NHU AX교육플랫폼 구축"],
-                    ["기간", "계약일부터 2026년 12월 31일까지"], ["예산", "5,500만 원"],
-                    ["계약", "일반경쟁입찰, 협상에 의한 계약"]]
-    first_cell = t["children"][0]["table_row"]["cells"][0]
-    assert all(r["annotations"]["bold"] for r in first_cell)
+def test_overview_object_renders_labeled_lines():
+    rich = _overview_box(dash(overview=OV))
+    assert _plain(rich) == "발주  농협대학교 산학협력단\n내용  NHU AX교육플랫폼 구축\n기간  계약일부터 2026년 12월 31일까지\n예산  5,500만 원\n계약  일반경쟁입찰, 협상에 의한 계약"
+    labels = [r["text"]["content"].strip() for r in rich if r.get("annotations", {}).get("bold")]
+    assert labels == ["발주", "내용", "기간", "예산", "계약"]
 
 
 def test_overview_object_skips_missing_fields():
-    _, rows = _overview_rows(dash(overview={"client": "A기관", "content": "구축"}))
-    assert rows == [["발주", "A기관"], ["내용", "구축"]]
+    assert _plain(_overview_box(dash(overview={"client": "A기관", "content": "구축"}))) == "발주  A기관\n내용  구축"
 
 
 def test_overview_object_all_empty_falls_back():
-    blocks = dash(overview={"client": ""})
-    h_idx = next(k for k, b in enumerate(blocks) if b["type"] == "heading_3" and "사업 개요" in _plain(b["heading_3"]["rich_text"]))
-    assert blocks[h_idx + 1]["type"] == "callout"
+    assert _plain(_overview_box(dash(overview={"client": ""}))) == "-"
+
+
+def _bold_parts(rich):
+    return [r["text"]["content"] for r in rich if r.get("annotations", {}).get("bold")]
+
+
+def test_fit_reason_keywords_bold():
+    a = analysis(3)
+    a["fit_reason"] = "**RAG 학습튜터** 직접 개발이라 주력과 일치. 다만 **기간 1개월**"
+    blocks = build_blocks(a, OK_DOC, notice(), TODAY)
+    rich = blocks[1]["callout"]["rich_text"]
+    assert _plain(rich) == "RAG 학습튜터 직접 개발이라 주력과 일치. 다만 기간 1개월"
+    assert _bold_parts(rich) == ["RAG 학습튜터", "기간 1개월"]
+
+
+def test_why_fit_and_gaps_keywords_bold():
+    blocks = dash(why_fit=["**LLMOps** 경험이 있는 팀이 유리"], gaps=["**GPU 서버 구매** 비중이 큼"])
+    cl = [b for b in blocks if b["type"] == "column_list"][1]
+    left, right = [c["column"]["children"] for c in cl["column_list"]["children"]]
+    assert _plain(left[1]["bulleted_list_item"]["rich_text"]) == "LLMOps 경험이 있는 팀이 유리"
+    assert _bold_parts(left[1]["bulleted_list_item"]["rich_text"]) == ["LLMOps"]
+    assert _bold_parts(right[1]["bulleted_list_item"]["rich_text"]) == ["GPU 서버 구매"]
+
+
+def test_bold_markers_stripped_from_properties():
+    p = build_properties(notice(), analysis(summary="**AI 챗봇** 구축"), OK_DOC, None, TODAY)
+    assert text(p, "한줄 요약") == "AI 챗봇 구축"
