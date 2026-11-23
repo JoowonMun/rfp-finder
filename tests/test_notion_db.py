@@ -338,3 +338,11 @@ def test_network_error_becomes_notion_error():
 def test_deadline_card_states_reference_date():
     texts, _ = _cards(dash())
     assert "11.20 기준" in texts[2]
+
+
+def test_select_options_have_colors():
+    colors = {p: {o["name"]: o["color"] for o in DB_PROPERTIES[p]["select"]["options"]}
+              for p in ("구분", "적합도", "RFP 분석")}
+    assert colors["적합도"] == {"★★★": "green", "★★": "yellow", "★": "gray"}
+    assert colors["구분"] == {"본공고": "blue", "사전규격": "purple"}
+    assert colors["RFP 분석"] == {"완료": "green", "실패": "red"}

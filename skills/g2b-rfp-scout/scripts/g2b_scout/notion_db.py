@@ -20,21 +20,22 @@ FIRST_ORD = {"", "0", "00", "000"}
 FIT_LABEL = {3: "★★★", 2: "★★", 1: "★"}
 
 
-def _select(options: list[str]) -> dict:
-    return {"select": {"options": [{"name": o} for o in options]}}
+def _select(options: dict[str, str]) -> dict:
+    """{옵션 이름: 색} → 노션 select 정의. 색이 있어야 표에서 한눈에 구분된다."""
+    return {"select": {"options": [{"name": n, "color": c} for n, c in options.items()]}}
 
 
 DB_PROPERTIES: dict[str, dict] = {
     "공고명": {"title": {}},
-    "구분": _select(["본공고", "사전규격"]),
+    "구분": _select({"본공고": "blue", "사전규격": "purple"}),
     "발주기관": {"rich_text": {}},
     "예산": {"number": {"format": "won"}},
     "마감일": {"date": {}},
-    "적합도": _select(["★★★", "★★", "★"]),
+    "적합도": _select({"★★★": "green", "★★": "yellow", "★": "gray"}),
     "한줄 요약": {"rich_text": {}},
     "제안요청서": {"files": {}},
     "원문 링크": {"url": {}},
-    "RFP 분석": _select(["완료", "실패"]),
+    "RFP 분석": _select({"완료": "green", "실패": "red"}),
     "공고번호": {"rich_text": {}},
     "수집일": {"date": {}},
 }
