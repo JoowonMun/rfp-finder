@@ -130,7 +130,7 @@ def _callout(content: str, emoji: str, color: str) -> dict:
 def _card(label: str, value: str, sub: list[str], emoji: str, color: str) -> dict:
     """카드: 항목명·값은 굵게, 보조 줄은 보통 글씨."""
     rich = [
-        {"type": "text", "text": {"content": label + "\n"}, "annotations": {"bold": True, "color": "gray"}},
+        {"type": "text", "text": {"content": label + "\n"}, "annotations": {"bold": True}},
         {"type": "text", "text": {"content": value}, "annotations": {"bold": True}},
     ]
     if sub:
@@ -167,6 +167,12 @@ def _deadline_card(notice: Notice, today: date) -> dict:
                  "⏰", "orange_background")
 
 
+def _eval_lines(text: str | None) -> list[str]:
+    """'기술 90 : 가격 10, 협상에 의한 계약' → ['기술 90', '가격 10', '협상에 의한 계약']"""
+    parts = re.split(r"\s*[:：,/·\n]\s*", (text or "").strip())
+    return [x for x in parts if x] or ["미기재"]
+
+
 def _bullets(items) -> list[dict]:
     items = [str(i) for i in (items or [])]
     return [_block("bulleted_list_item", i) for i in items] or [_block("paragraph", "-")]
@@ -185,12 +191,12 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date, ex
         [_card("적합도", FIT_LABEL[fit], [label], "🎯", color)],
         [_card("예산", _won(notice.budget_krw), [duration] if duration else [], "💰", "blue_background")],
         [_deadline_card(notice, today)],
-        [_card("평가", d.get("evaluation") or "미기재", [], "📊", "purple_background")],
+        [_card("평가", "\n".join(_eval_lines(d.get("evaluation"))), [], "📊", "purple_background")],
     ]))
     blocks.append(_callout(analysis.get("fit_reason", ""), "💬", "gray_background"))
 
     blocks.append(_block("heading_3", "📌 사업 개요"))
-    blocks.append(_block("paragraph", str(d.get("overview") or "-")))
+    blocks.append(_callout(str(d.get("overview") or "-"), "📄", "default"))
 
     blocks.append(_block("heading_3", "📋 주요 요구사항"))
     reqs = d.get("requirements", []) or []
@@ -216,7 +222,7 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date, ex
         blocks.append(_block("paragraph", "제안요청서에 명시된 자격 요건 없음"))
 
     blocks.append(_block("heading_3", "📊 평가 방식"))
-    blocks.append(_block("paragraph", str(d.get("evaluation") or "-")))
+    blocks.extend(_block("bulleted_list_item", x) for x in _eval_lines(d.get("evaluation")))
 
     if excerpt and excerpt.strip():
         text = excerpt.strip()[:EXCERPT_LIMIT]

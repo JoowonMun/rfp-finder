@@ -132,7 +132,7 @@ def test_dashboard_cards():
     assert "★★★" in texts[0] and "바로 검토" in texts[0]
     assert "4.2억" in texts[1] and "6개월" in texts[1]
     assert "D-56" in texts[2] and "01.15(금) 10:00" in texts[2]
-    assert "기술 90 : 가격 10" in texts[3]
+    assert "기술 90\n가격 10" in texts[3]
     fit_card = cl["column_list"]["children"][0]["column"]["children"][0]["callout"]
     assert fit_card["color"] == "green_background"
 
@@ -210,8 +210,8 @@ def test_requirements_numbered_bold():
 
 def test_overview_and_evaluation_shown_inline():
     blocks = dash()
-    paras = " ".join(_plain(b["paragraph"]["rich_text"]) for b in blocks if b["type"] == "paragraph")
-    assert "기간 6개월, 예산 4.2억" in paras and "기술 90 : 가격 10" in paras
+    text = " ".join(_plain(b[b["type"]]["rich_text"]) for b in blocks if b["type"] in ("callout", "bulleted_list_item"))
+    assert "기간 6개월, 예산 4.2억" in text and "기술 90" in text and "가격 10" in text
 
 
 def test_excerpt_toggle_split_and_capped():
@@ -377,3 +377,27 @@ def test_requirements_with_details_render_nested_bullets():
     kids = items[0]["numbered_list_item"]["children"]
     assert [_plain(k["bulleted_list_item"]["rich_text"]) for k in kids] == ["3개년 단계별 로드맵", "우선 과제 10건 선정"]
     assert "children" not in items[1]["numbered_list_item"]
+
+
+def test_card_label_is_not_gray():
+    _, cl = _cards(dash())
+    rich = cl["column_list"]["children"][0]["column"]["children"][0]["callout"]["rich_text"]
+    assert all(r.get("annotations", {}).get("color", "default") == "default" for r in rich)
+
+
+def test_evaluation_split_into_lines():
+    texts, _ = _cards(dash(evaluation="기술 90 : 가격 10, 협상에 의한 계약"))
+    assert "기술 90\n가격 10\n협상에 의한 계약" in texts[3]
+    blocks = dash(evaluation="기술 90 : 가격 10, 협상에 의한 계약")
+    i = _h3(blocks).index("📊 평가 방식")
+    h_idx = [k for k, b in enumerate(blocks) if b["type"] == "heading_3"][i]
+    after = [_plain(b["bulleted_list_item"]["rich_text"]) for b in blocks[h_idx + 1:h_idx + 4] if b["type"] == "bulleted_list_item"]
+    assert after == ["기술 90", "가격 10", "협상에 의한 계약"]
+
+
+def test_overview_in_white_callout():
+    blocks = dash()
+    h_idx = next(k for k, b in enumerate(blocks) if b["type"] == "heading_3" and "사업 개요" in _plain(b["heading_3"]["rich_text"]))
+    box = blocks[h_idx + 1]
+    assert box["type"] == "callout" and box["callout"]["color"] == "default"
+    assert "기간 6개월, 예산 4.2억" in _plain(box["callout"]["rich_text"])
