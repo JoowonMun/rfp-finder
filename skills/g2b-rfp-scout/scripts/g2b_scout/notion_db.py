@@ -112,7 +112,6 @@ def build_properties(
 
 FIT_CARD = {3: ("바로 검토", "green_background"), 2: ("조건부 검토", "yellow_background"), 1: ("자동제외", "gray_background")}
 WEEKDAY = "월화수목금토일"
-EXCERPT_LIMIT = 6000
 
 
 def _block(kind: str, content: str, *, bold: bool = False, **extra) -> dict:
@@ -171,22 +170,20 @@ OVERVIEW_FIELDS = [("client", "발주"), ("content", "내용"), ("period", "기�
 
 
 def _overview_box(overview) -> dict:
-    """사업 개요 상자. 객체면 '항목명(굵게)  값' 한 줄씩, 문자열이면 그대로."""
+    """사업 개요. 객체면 '항목명(굵게) | 값' 2열 표, 문자열이면 흰 콜아웃."""
     if not isinstance(overview, dict):
         return _callout(str(overview or "-"), "📄", "default")
-    rich = []
+    rows = []
     for key, label in OVERVIEW_FIELDS:
         value = str(overview.get(key) or "").strip()
         if not value:
             continue
-        if rich:
-            rich.append({"type": "text", "text": {"content": "\n"}})
-        rich.append({"type": "text", "text": {"content": label}, "annotations": {"bold": True}})
-        rich.append({"type": "text", "text": {"content": "  " + (_chunks16(value) or [""])[0]}})
-    if not rich:
+        head = [{"type": "text", "text": {"content": label}, "annotations": {"bold": True}}]
+        rows.append({"object": "block", "type": "table_row", "table_row": {"cells": [head, _rt(value)]}})
+    if not rows:
         return _callout("-", "📄", "default")
-    return {"object": "block", "type": "callout",
-            "callout": {"rich_text": rich, "icon": {"type": "emoji", "emoji": "📄"}, "color": "default"}}
+    return {"object": "block", "type": "table",
+            "table": {"table_width": 2, "has_column_header": False, "has_row_header": True, "children": rows}}
 
 
 def _eval_lines(text: str | None) -> list[str]:
@@ -200,7 +197,7 @@ def _bullets(items) -> list[dict]:
     return [_block("bulleted_list_item", i) for i in items] or [_block("paragraph", "-")]
 
 
-def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date, excerpt: str | None = None) -> list[dict]:
+def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date) -> list[dict]:
     d = analysis.get("detail", {})
     fit = int(analysis["fit"])
     label, color = FIT_CARD[fit]
@@ -245,19 +242,7 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date, ex
 
     blocks.append(_block("heading_3", "📊 평가 방식"))
     blocks.extend(_block("bulleted_list_item", x) for x in _eval_lines(d.get("evaluation")))
-
-    if excerpt and excerpt.strip():
-        text = excerpt.strip()[:EXCERPT_LIMIT]
-        paras = [_block("paragraph", c) for c in _chunks16(text)]
-        blocks.append(_block("toggle", "제안요청서 원문 발췌", children=paras))
     return blocks[:100]
-
-
-def _read_excerpt(doc: DocResult) -> str | None:
-    try:
-        return Path(doc.excerpt_path).read_text(encoding="utf-8") if doc.excerpt_path else None
-    except OSError:
-        return None
 
 
 class NotionClient:
@@ -351,6 +336,6 @@ class NotionClient:
         body = {
             "parent": {"database_id": database_id},
             "properties": build_properties(notice, analysis, doc, file_upload_id, today or date.today()),
-            "children": build_blocks(analysis, doc, notice, today or date.today(), _read_excerpt(doc)),
+            "children": build_blocks(analysis, doc, notice, today or date.today()),
         }
         return self._request("POST", "/pages", json=body)

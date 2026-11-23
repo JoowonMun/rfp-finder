@@ -112,14 +112,14 @@ def _cards(blocks):
     return [_plain(col["column"]["children"][0]["callout"]["rich_text"]) for col in cl["column_list"]["children"]], cl
 
 
-def dash(fit=3, doc=OK_DOC, n=None, excerpt="제안요청서 본문 발췌", **detail):
+def dash(fit=3, doc=OK_DOC, n=None, **detail):
     a = analysis(fit)
     a["detail"].update(detail)
-    return build_blocks(a, doc, n or notice(), TODAY, excerpt)
+    return build_blocks(a, doc, n or notice(), TODAY)
 
 
 def test_build_blocks_failed_warning():
-    blocks = dash(doc=FAIL_DOC, excerpt=None)
+    blocks = dash(doc=FAIL_DOC)
     assert blocks[0]["type"] == "callout"
     assert _plain(blocks[0]["callout"]["rich_text"]) == "⚠ 제안요청서 변환 실패 — 원문 직접 확인 필요"
 
@@ -166,7 +166,7 @@ def test_dashboard_layout_order():
     assert t[:2] == ["column_list", "callout"]
     assert "table" not in t
     assert _h3(blocks) == ["📌 사업 개요", "📋 주요 요구사항", "☑ 참가 자격 체크리스트", "📊 평가 방식"]
-    assert [_plain(b["toggle"]["rich_text"]) for b in blocks if b["type"] == "toggle"] == ["제안요청서 원문 발췌"]
+    assert "toggle" not in t  # 원문 발췌 토글은 넣지 않음
     # 맞는 점/안 맞는 점 2단은 요구사항 다음, 자격 체크리스트 앞
     i_cols = [i for i, b in enumerate(blocks) if b["type"] == "column_list"][1]
     i_req = next(i for i, b in enumerate(blocks) if b["type"] == "numbered_list_item")
@@ -212,19 +212,6 @@ def test_overview_and_evaluation_shown_inline():
     blocks = dash()
     text = " ".join(_plain(b[b["type"]]["rich_text"]) for b in blocks if b["type"] in ("callout", "bulleted_list_item"))
     assert "기간 6개월, 예산 4.2억" in text and "기술 90" in text and "가격 10" in text
-
-
-def test_excerpt_toggle_split_and_capped():
-    blocks = dash(excerpt="가" * 10000)
-    tog = [b for b in blocks if b["type"] == "toggle"][0]
-    paras = tog["toggle"]["children"]
-    assert all(len(_plain(p["paragraph"]["rich_text"])) <= 2000 for p in paras)
-    assert sum(len(_plain(p["paragraph"]["rich_text"])) for p in paras) <= 6100
-
-
-def test_no_excerpt_toggle_without_text():
-    toggles = [b for b in dash(excerpt=None) if b["type"] == "toggle"]
-    assert toggles == []
 
 
 def test_nesting_depth_at_most_two():
@@ -330,9 +317,8 @@ def _u16(s):
 
 def test_text_limits_count_utf16_units():
     wide = "\U000f02b1"  # HWP 사용자 정의 기호: UTF-16 2칸
-    blocks = dash(excerpt=("가" * 1999 + wide) * 3)
-    tog = [b for b in blocks if b["type"] == "toggle"][0]
-    assert all(_u16(_plain(p["paragraph"]["rich_text"])) <= 2000 for p in tog["toggle"]["children"])
+    _, rows = _overview_rows(dash(overview={"content": ("가" * 1999 + wide) * 3}))
+    assert _u16(rows[0][1]) <= 2000
     p = build_properties(notice(), analysis(summary=wide * 1500), OK_DOC, None, TODAY)
     assert _u16(text(p, "한줄 요약")) <= 2000
 
@@ -407,16 +393,30 @@ OV = {"client": "농협대학교 산학협력단", "content": "NHU AX교육플�
       "budget": "5,500만 원", "contract": "일반경쟁입찰, 협상에 의한 계약"}
 
 
-def test_overview_object_renders_labeled_lines():
-    blocks = dash(overview=OV)
-    box = next(b for b in blocks if b["type"] == "callout" and b["callout"]["color"] == "default")
-    rich = box["callout"]["rich_text"]
-    assert _plain(rich) == "발주  농협대학교 산학협력단\n내용  NHU AX교육플랫폼 구축\n기간  계약일부터 2026년 12월 31일까지\n예산  5,500만 원\n계약  일반경쟁입찰, 협상에 의한 계약"
-    labels = [r["text"]["content"].strip() for r in rich if r.get("annotations", {}).get("bold")]
-    assert labels == ["발주", "내용", "기간", "예산", "계약"]
+def _overview_rows(blocks):
+    h_idx = next(k for k, b in enumerate(blocks) if b["type"] == "heading_3" and "사업 개요" in _plain(b["heading_3"]["rich_text"]))
+    table = blocks[h_idx + 1]
+    assert table["type"] == "table"
+    return table, [[_plain(c) for c in row["table_row"]["cells"]] for row in table["table"]["children"]]
+
+
+def test_overview_object_renders_table():
+    table, rows = _overview_rows(dash(overview=OV))
+    t = table["table"]
+    assert t["table_width"] == 2 and t["has_row_header"] is True and t["has_column_header"] is False
+    assert rows == [["발주", "농협대학교 산학협력단"], ["내용", "NHU AX교육플랫폼 구축"],
+                    ["기간", "계약일부터 2026년 12월 31일까지"], ["예산", "5,500만 원"],
+                    ["계약", "일반경쟁입찰, 협상에 의한 계약"]]
+    first_cell = t["children"][0]["table_row"]["cells"][0]
+    assert all(r["annotations"]["bold"] for r in first_cell)
 
 
 def test_overview_object_skips_missing_fields():
-    blocks = dash(overview={"client": "A기관", "content": "구축"})
-    box = next(b for b in blocks if b["type"] == "callout" and b["callout"]["color"] == "default")
-    assert _plain(box["callout"]["rich_text"]) == "발주  A기관\n내용  구축"
+    _, rows = _overview_rows(dash(overview={"client": "A기관", "content": "구축"}))
+    assert rows == [["발주", "A기관"], ["내용", "구축"]]
+
+
+def test_overview_object_all_empty_falls_back():
+    blocks = dash(overview={"client": ""})
+    h_idx = next(k for k, b in enumerate(blocks) if b["type"] == "heading_3" and "사업 개요" in _plain(b["heading_3"]["rich_text"]))
+    assert blocks[h_idx + 1]["type"] == "callout"
