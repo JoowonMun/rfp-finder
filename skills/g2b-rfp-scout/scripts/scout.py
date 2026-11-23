@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import argparse
-import getpass
 import json
 import os
 import re
@@ -20,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from g2b_scout import g2b_api, paths  # noqa: E402
+from g2b_scout import excluded, g2b_api, paths  # noqa: E402
 from g2b_scout.analysis import AnalysisError, validate_analysis  # noqa: E402
 from g2b_scout.config import ConfigError, config_path, load_config, load_secrets  # noqa: E402
 from g2b_scout.fetch import fetch_documents, safe_filename  # noqa: E402
@@ -46,10 +45,6 @@ def _log(msg: str) -> None:
             fh.write(f"{datetime.now():%H:%M:%S} {msg}\n")
     except OSError:
         pass
-
-
-def _collector() -> str:
-    return os.environ.get("G2B_SCOUT_COLLECTOR") or getpass.getuser()
 
 
 def _read_json(p: Path, default=None):
@@ -140,7 +135,7 @@ def cmd_candidates(args, ctx) -> dict:
         except g2b_api.G2BApiError as e:
             warnings.append(f"사전규격 수집 실패: {e}")
 
-    existing = _notion(ctx, secrets).existing_keys(db)
+    existing = _notion(ctx, secrets).existing_keys(db) | excluded.load_keys()
     selected, overflow = select_candidates(notices, existing, cfg, now)
     new_count = len({n.key for n in notices} - existing)
 
@@ -202,6 +197,17 @@ def cmd_publish(args, ctx) -> dict:
     doc_raw = _read_json(run_dir / "docs.json", default={}).get(args.key)
     doc = DocResult.from_dict(doc_raw) if doc_raw else DocResult(ok=False, error="문서 미처리")
 
+    published = _read_json(run_dir / "published.json", default={})
+    record = {"fit": analysis["fit"], "rfp_ok": doc.ok, "url": None, "title": notice.title,
+              "deadline": notice.deadline.isoformat() if notice.deadline else None, "excluded": False}
+
+    if analysis["fit"] == 1:  # 자동제외: 노션 표에는 올리지 않고 로컬에만 기록
+        excluded.add(notice.key, notice.title, ctx["now"].date())
+        published[notice.key] = {**record, "excluded": True}
+        _write_json(run_dir / "published.json", published)
+        _log(f"publish {notice.key}: fit=1 → 자동제외(로컬 기록)")
+        return {"key": notice.key, "status": "excluded", "page_url": None}
+
     notion = _notion(ctx, secrets)
     if notion.has_key(db, notice.key):
         return {"key": notice.key, "status": "skipped_duplicate", "page_url": None}
@@ -210,16 +216,14 @@ def cmd_publish(args, ctx) -> dict:
     if doc.rfp_path and Path(doc.rfp_path).exists():
         upload_id = notion.upload_file(Path(doc.rfp_path), cfg.max_upload_mb)
     try:
-        page = notion.create_entry(db, notice, analysis, doc, upload_id, _collector(), ctx["now"].date())
+        page = notion.create_entry(db, notice, analysis, doc, upload_id, ctx["now"].date())
     except NotionError:
         if not upload_id:
             raise
         _log(f"publish {notice.key}: 파일 첨부 실패 → 링크로 재시도")
-        page = notion.create_entry(db, notice, analysis, doc, None, _collector(), ctx["now"].date())
+        page = notion.create_entry(db, notice, analysis, doc, None, ctx["now"].date())
 
-    published = _read_json(run_dir / "published.json", default={})
-    published[notice.key] = {"fit": analysis["fit"], "rfp_ok": doc.ok, "url": page.get("url"), "title": notice.title,
-                             "deadline": notice.deadline.isoformat() if notice.deadline else None}
+    published[notice.key] = {**record, "url": page.get("url")}
     _write_json(run_dir / "published.json", published)
     _log(f"publish {notice.key}: fit={analysis['fit']} file={'upload' if upload_id else 'link'}")
     return {"key": notice.key, "status": "created", "page_url": page.get("url")}
@@ -233,9 +237,11 @@ def cmd_summary(args, ctx) -> dict:
     for p in published.values():
         by_fit[str(p["fit"])] += 1
     top = [{"title": p["title"], "deadline": p["deadline"], "url": p["url"]} for p in published.values() if p["fit"] == 3]
+    in_notion = [p for p in published.values() if not p.get("excluded")]
     return {
-        "selected": len(cands["selected"]), "published": len(published), "by_fit": by_fit,
-        "rfp_failed": sum(1 for p in published.values() if not p["rfp_ok"]),
+        "selected": len(cands["selected"]), "published": len(in_notion),
+        "excluded": len(published) - len(in_notion), "by_fit": by_fit,
+        "rfp_failed": sum(1 for p in in_notion if not p["rfp_ok"]),
         "overflow": len(cands["overflow"]), "warnings": cands.get("warnings", []), "top": top,
     }
 

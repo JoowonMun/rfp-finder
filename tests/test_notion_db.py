@@ -49,10 +49,10 @@ def text(props, name):
 
 
 def test_build_properties_fit3():
-    p = build_properties(notice(), analysis(3), OK_DOC, "upl-1", "joowon", TODAY)
+    p = build_properties(notice(), analysis(3), OK_DOC, "upl-1", TODAY)
     assert p["공고명"]["title"][0]["text"]["content"] == "2027 생성형 AI 행정혁신 ISP"
     assert sel(p, "적합도") == "★★★"
-    assert sel(p, "상태") == "검토전"
+    assert "상태" not in p and "수집자" not in p
     assert sel(p, "구분") == "본공고"
     assert sel(p, "RFP 분석") == "완료"
     assert text(p, "공고번호") == "R26BK1-000"
@@ -60,29 +60,23 @@ def test_build_properties_fit3():
     assert p["마감일"]["date"]["start"].startswith("2027-01-15T10:00")
     assert p["원문 링크"]["url"] == "https://g2b/detail"
     assert p["제안요청서"]["files"][0] == {"type": "file_upload", "file_upload": {"id": "upl-1"}, "name": "제안요청서.hwp"}
-    assert text(p, "수집자") == "joowon"
     assert p["수집일"]["date"]["start"] == "2026-11-20"
     assert set(p) == set(DB_PROPERTIES)
 
 
-def test_build_properties_fit1_auto_excluded():
-    p = build_properties(notice(), analysis(1), OK_DOC, None, "j", TODAY)
-    assert sel(p, "적합도") == "★" and sel(p, "상태") == "자동제외"
-
-
 def test_build_properties_file_fallback_link():
-    p = build_properties(notice(), analysis(2), OK_DOC, None, "j", TODAY)
+    p = build_properties(notice(), analysis(2), OK_DOC, None, TODAY)
     f = p["제안요청서"]["files"][0]
     assert f["type"] == "external" and f["external"]["url"] == "https://g2b/file1" and f["name"] == "제안요청서.hwp"
 
 
 def test_build_properties_rfp_failed():
-    p = build_properties(notice(), analysis(2), FAIL_DOC, None, "j", TODAY)
+    p = build_properties(notice(), analysis(2), FAIL_DOC, None, TODAY)
     assert sel(p, "RFP 분석") == "실패"
 
 
 def test_prespec_label_and_link_fallback():
-    p = build_properties(notice(kind="prespec", detail=""), analysis(2), OK_DOC, None, "j", TODAY)
+    p = build_properties(notice(kind="prespec", detail=""), analysis(2), OK_DOC, None, TODAY)
     assert sel(p, "구분") == "사전규격"
     assert p["원문 링크"]["url"] == "https://g2b/file1"
 
@@ -90,18 +84,18 @@ def test_prespec_label_and_link_fallback():
 def test_budget_none():
     n = notice()
     n.budget_krw = None
-    assert build_properties(n, analysis(), OK_DOC, None, "j", TODAY)["예산"]["number"] is None
+    assert build_properties(n, analysis(), OK_DOC, None, TODAY)["예산"]["number"] is None
 
 
 def test_long_summary_truncated():
-    p = build_properties(notice(), analysis(summary="가" * 3000), OK_DOC, None, "j", TODAY)
+    p = build_properties(notice(), analysis(summary="가" * 3000), OK_DOC, None, TODAY)
     assert len(text(p, "한줄 요약")) <= 2000
 
 
 def test_revised_notice_marked():
-    p = build_properties(notice(ord_="001"), analysis(), OK_DOC, None, "j", TODAY)
+    p = build_properties(notice(ord_="001"), analysis(), OK_DOC, None, TODAY)
     assert text(p, "한줄 요약").startswith("[정정공고] ")
-    p0 = build_properties(notice(ord_="000"), analysis(), OK_DOC, None, "j", TODAY)
+    p0 = build_properties(notice(ord_="000"), analysis(), OK_DOC, None, TODAY)
     assert not text(p0, "한줄 요약").startswith("[정정공고]")
 
 

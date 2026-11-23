@@ -18,7 +18,6 @@ FILE_NAME_LIMIT = 100
 FIRST_ORD = {"", "0", "00", "000"}
 
 FIT_LABEL = {3: "★★★", 2: "★★", 1: "★"}
-STATUS_OPTIONS = ["검토전", "검토중", "참여", "보류", "자동제외"]
 
 
 def _select(options: list[str]) -> dict:
@@ -35,11 +34,9 @@ DB_PROPERTIES: dict[str, dict] = {
     "한줄 요약": {"rich_text": {}},
     "제안요청서": {"files": {}},
     "원문 링크": {"url": {}},
-    "상태": _select(STATUS_OPTIONS),
     "RFP 분석": _select(["완료", "실패"]),
     "공고번호": {"rich_text": {}},
     "수집일": {"date": {}},
-    "수집자": {"rich_text": {}},
 }
 
 
@@ -65,7 +62,7 @@ def _kst(dt: datetime) -> str:
 
 
 def build_properties(
-    notice: Notice, analysis: dict, doc: DocResult, file_upload_id: str | None, collector: str, today: date
+    notice: Notice, analysis: dict, doc: DocResult, file_upload_id: str | None, today: date
 ) -> dict:
     fit = int(analysis["fit"])
     summary = analysis.get("summary", "")
@@ -91,11 +88,9 @@ def build_properties(
         "한줄 요약": {"rich_text": _rt(summary)},
         "제안요청서": {"files": files},
         "원문 링크": {"url": link},
-        "상태": {"select": {"name": "자동제외" if fit == 1 else "검토전"}},
         "RFP 분석": {"select": {"name": "완료" if doc.ok else "실패"}},
         "공고번호": {"rich_text": _rt(notice.key)},
         "수집일": {"date": {"start": today.isoformat()}},
-        "수집자": {"rich_text": _rt(collector)},
     }
 
 
@@ -282,11 +277,11 @@ class NotionClient:
 
     def create_entry(
         self, database_id: str, notice: Notice, analysis: dict, doc: DocResult,
-        file_upload_id: str | None, collector: str, today: date | None = None,
+        file_upload_id: str | None, today: date | None = None,
     ) -> dict:
         body = {
             "parent": {"database_id": database_id},
-            "properties": build_properties(notice, analysis, doc, file_upload_id, collector, today or date.today()),
+            "properties": build_properties(notice, analysis, doc, file_upload_id, today or date.today()),
             "children": build_blocks(analysis, doc, notice, today or date.today(), _read_excerpt(doc)),
         }
         return self._request("POST", "/pages", json=body)

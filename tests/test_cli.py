@@ -56,7 +56,7 @@ class FakeNotion:
         self.uploads.append(path)
         return "upl-1"
 
-    def create_entry(self, db, notice, analysis, doc, file_upload_id, collector, today=None):
+    def create_entry(self, db, notice, analysis, doc, file_upload_id, today=None):
         if self.fail_with_file and file_upload_id:
             raise NotionError("노션 API 오류 HTTP 400: file type")
         self.created.append((notice.key, file_upload_id))
@@ -71,7 +71,6 @@ def home(tmp_path, monkeypatch):
     (h / "config.yaml").write_text(CONFIG, encoding="utf-8")
     (h / ".env").write_text("DATA_GO_KR_SERVICE_KEY=k\nNOTION_TOKEN=t\n", encoding="utf-8")
     monkeypatch.setenv("G2B_SCOUT_HOME", str(h))
-    monkeypatch.setenv("G2B_SCOUT_COLLECTOR", "tester")
     monkeypatch.chdir(tmp_path)
     for k in ("DATA_GO_KR_SERVICE_KEY", "NOTION_TOKEN", "DATA_GO_KR_BID_SERVICE_KEY"):
         monkeypatch.delenv(k, raising=False)
@@ -193,3 +192,30 @@ def test_fetch_fills_missing_bid_attachments(home, capsys, monkeypatch):
     from pathlib import Path
     saved = json.loads((Path(out["run_dir"]) / "candidates.json").read_text(encoding="utf-8"))
     assert saved["selected"][0]["attachments"][0]["url"] == "https://f/B9"
+
+
+def _set_fit(run_dir, fit):
+    from pathlib import Path
+    p = Path(run_dir) / "analysis" / "B1.json"
+    d = json.loads(p.read_text(encoding="utf-8"))
+    d["fit"] = fit
+    p.write_text(json.dumps(d), encoding="utf-8")
+
+
+def test_publish_fit1_is_recorded_locally_not_in_notion(home, capsys):
+    notion = FakeNotion()
+    run_dir = _prepare_run(home, capsys, notion)
+    _set_fit(run_dir, 1)
+    code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1"], notion=notion)
+    assert code == 0 and out["status"] == "excluded"
+    assert notion.created == [] and notion.uploads == []
+    assert "B1" in json.loads((home / "excluded.json").read_text(encoding="utf-8"))
+    code, out = run(capsys, ["summary", "--run", run_dir])
+    assert out["by_fit"]["1"] == 1 and out["published"] == 0 and out["excluded"] == 1
+
+
+def test_candidates_skips_locally_excluded(home, capsys):
+    (home / "excluded.json").write_text(json.dumps({"B1": {"title": "x", "date": "2026-11-19"}}), encoding="utf-8")
+    api = FakeApi([mk("B1", "AI 전략"), mk("B2", "AI 기획")], [])
+    code, out = run(capsys, ["candidates"], api=api, notion=FakeNotion())
+    assert out["selected"] == 1
