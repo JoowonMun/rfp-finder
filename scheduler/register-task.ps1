@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  g2b-rfp-scout 를 평일 아침마다 자동 실행하도록 Windows 작업 스케줄러에 등록/해제합니다.
+  rfp-finder 를 평일 아침마다 자동 실행하도록 Windows 작업 스케줄러에 등록/해제합니다.
 
 .EXAMPLE
   .\register-task.ps1                 # 평일 08:30 등록
@@ -9,11 +9,11 @@
 #>
 param(
     [string]$Time = "08:30",
-    [string]$WorkingDir = "",   # 기본: %USERPROFILE%\.g2b-rfp-scout (개발 중 .env 가 저장소에 있으면 그 폴더)
+    [string]$WorkingDir = "",   # 기본: %USERPROFILE%\.rfp-finder (개발 중 .env 가 저장소에 있으면 그 폴더)
     [switch]$Unregister
 )
 
-$TaskName = "g2b-rfp-scout"
+$TaskName = "rfp-finder"
 
 if ($Unregister) {
     Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
@@ -27,14 +27,14 @@ if (-not $claude) {
     return
 }
 
-$home_ = Join-Path $env:USERPROFILE ".g2b-rfp-scout"
+$home_ = Join-Path $env:USERPROFILE ".rfp-finder"
 $logs = Join-Path $home_ "logs"
 New-Item -ItemType Directory -Force $logs | Out-Null
 if (-not $WorkingDir) { $WorkingDir = $home_ }
 
 # 무인 실행: python 실행(Bash/PowerShell 도구 모두), 파일 읽기/쓰기만 허용.
 # 실행 폴더(runs) 가 있는 설정 폴더를 --add-dir 로 열어 줘야 분석 파일을 쓸 수 있다.
-$prompt = "/g2b-rfp-scout 무인 실행입니다. 질문하지 말고 끝까지 진행한 뒤 결과를 요약하세요."
+$prompt = "/rfp-finder 무인 실행입니다. 질문하지 말고 끝까지 진행한 뒤 결과를 요약하세요."
 $allowed = "'Bash(python:*)' 'PowerShell(python:*)' 'Read' 'Write'"
 $cmd = "`$log = Join-Path '$logs' ('scheduled-' + (Get-Date -Format yyyyMMdd) + '.log'); " +
        "Set-Location '$WorkingDir'; " +

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from g2b_scout import g2b_api
-from g2b_scout.g2b_api import G2BApiError, parse_bid, parse_budget, parse_items, parse_prespec
+from rfp_finder import g2b_api
+from rfp_finder.g2b_api import G2BApiError, parse_bid, parse_budget, parse_items, parse_prespec
 
 FIX = Path(__file__).parent / "fixtures" / "api"
 

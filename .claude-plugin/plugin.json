@@ -1,5 +1,5 @@
 {
-  "name": "g2b-rfp-scout",
+  "name": "rfp-finder",
   "version": "0.1.0",
   "description": "나라장터 입찰공고·사전규격을 수집하고 제안요청서를 읽어 팀 적합도를 매긴 뒤 노션 DB에 쌓아주는 스킬",
   "author": { "name": "JoowonMun" },

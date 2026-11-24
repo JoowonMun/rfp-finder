@@ -1,4 +1,4 @@
-"""g2b-rfp-scout CLI. 모든 하위 명령은 결과를 stdout 마지막 줄에 JSON 한 줄로 출력한다.
+"""rfp-finder CLI. 모든 하위 명령은 결과를 stdout 마지막 줄에 JSON 한 줄로 출력한다.
 
   python scout.py doctor
   python scout.py setup-notion --parent-page <노션 페이지 URL 또는 ID>
@@ -19,13 +19,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from g2b_scout import excluded, g2b_api, paths  # noqa: E402
-from g2b_scout.analysis import AnalysisError, validate_analysis  # noqa: E402
-from g2b_scout.config import ConfigError, config_path, load_config, load_secrets  # noqa: E402
-from g2b_scout.fetch import fetch_documents, safe_filename  # noqa: E402
-from g2b_scout.models import DocResult, Notice  # noqa: E402
-from g2b_scout.notion_db import NotionClient, NotionError  # noqa: E402
-from g2b_scout.prefilter import select_candidates  # noqa: E402
+from rfp_finder import excluded, g2b_api, paths  # noqa: E402
+from rfp_finder.analysis import AnalysisError, validate_analysis  # noqa: E402
+from rfp_finder.config import ConfigError, config_path, load_config, load_secrets  # noqa: E402
+from rfp_finder.fetch import fetch_documents, safe_filename  # noqa: E402
+from rfp_finder.models import DocResult, Notice  # noqa: E402
+from rfp_finder.notion_db import NotionClient, NotionError  # noqa: E402
+from rfp_finder.prefilter import select_candidates  # noqa: E402
 
 
 class CliError(Exception):

@@ -1,9 +1,9 @@
 {
-  "name": "g2b-rfp-scout",
+  "name": "rfp-finder",
   "owner": { "name": "JoowonMun" },
   "plugins": [
     {
-      "name": "g2b-rfp-scout",
+      "name": "rfp-finder",
       "source": "./",
       "description": "나라장터 공고 수집·제안요청서 분석·노션 기록 스킬"
     }

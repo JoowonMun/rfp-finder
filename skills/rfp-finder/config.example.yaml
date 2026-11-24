@@ -1,5 +1,5 @@
-# g2b-rfp-scout 설정 예시
-# 이 파일을 %USERPROFILE%\.g2b-rfp-scout\config.yaml 로 복사해 팀에 맞게 고치세요.
+# rfp-finder 설정 예시
+# 이 파일을 %USERPROFILE%\.rfp-finder\config.yaml 로 복사해 팀에 맞게 고치세요.
 # (첫 실행 시 스킬이 질문을 통해 자동으로 만들어 주기도 합니다.)
 
 team:

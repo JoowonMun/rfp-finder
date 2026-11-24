@@ -1,4 +1,4 @@
-# g2b-rfp-scout — 나라장터 공고 추천 스킬
+# rfp-finder — 나라장터 공고 추천 스킬
 
 나라장터(조달청)에 올라오는 **용역 입찰공고와 사전규격**을 모아서, **제안요청서(HWP·HWPX·PDF) 본문까지 읽고**, 우리 팀 역량에 맞는 공고를 골라 **노션 표**에 쌓아주는 [Claude Code](https://claude.com/claude-code) 스킬입니다.
 
@@ -30,8 +30,8 @@
 
 ```
 # Claude Code 안에서
-/plugin marketplace add JoowonMun/g2b-rfp-scout
-/plugin install g2b-rfp-scout@g2b-rfp-scout
+/plugin marketplace add JoowonMun/rfp-finder
+/plugin install rfp-finder@rfp-finder
 ```
 
 ```
@@ -39,11 +39,11 @@
 pip install -r requirements.txt
 ```
 
-키 발급과 노션 연결은 [설정 가이드](skills/g2b-rfp-scout/references/setup-guide.md)를 따라 하면 15분이면 됩니다. 키는 `%USERPROFILE%\.g2b-rfp-scout\.env`에만 저장되고 저장소에는 올라가지 않습니다.
+키 발급과 노션 연결은 [설정 가이드](skills/rfp-finder/references/setup-guide.md)를 따라 하면 15분이면 됩니다. 키는 `%USERPROFILE%\.rfp-finder\.env`에만 저장되고 저장소에는 올라가지 않습니다.
 
 ## 사용
 
-Claude Code에서 `/g2b-rfp-scout` 또는 "나라장터 공고 찾아줘".
+Claude Code에서 `/rfp-finder` 또는 "나라장터 공고 찾아줘".
 
 - 첫 실행이면 팀 소개·관심 키워드 등을 물어보며 설정 파일을 만들어 줍니다.
 - 노션 DB가 없으면 페이지 URL을 물어보고 만들어 줍니다.
@@ -56,7 +56,7 @@ Claude Code에서 `/g2b-rfp-scout` 또는 "나라장터 공고 찾아줘".
 .\scheduler\register-task.ps1 -Unregister
 ```
 
-## 설정 (`%USERPROFILE%\.g2b-rfp-scout\config.yaml`)
+## 설정 (`%USERPROFILE%\.rfp-finder\config.yaml`)
 
 | 항목 | 설명 | 기본값 |
 |---|---|---|
@@ -71,7 +71,7 @@ Claude Code에서 `/g2b-rfp-scout` 또는 "나라장터 공고 찾아줘".
 | `collect.max_per_run` | 한 번에 분석할 공고 수 (Claude 사용량과 비례) | 15 |
 | `notion.max_upload_mb` | 노션 파일 업로드 한도 (무료 5MB) | 5 |
 
-전체 예시: [config.example.yaml](skills/g2b-rfp-scout/config.example.yaml)
+전체 예시: [config.example.yaml](skills/rfp-finder/config.example.yaml)
 
 ## 노션 표 보기 다듬기 (한 번만)
 
@@ -92,11 +92,11 @@ Claude Code에서 `/g2b-rfp-scout` 또는 "나라장터 공고 찾아줘".
 ## 구조
 
 ```
-skills/g2b-rfp-scout/
+skills/rfp-finder/
   SKILL.md                 Claude가 따르는 실행 절차
   references/              적합도 판단 지침, 설정 가이드
   scripts/scout.py         수집·다운로드·변환·노션 업로드 CLI (Claude가 호출)
-  scripts/g2b_scout/       API 클라이언트, 필터, HWP/PDF 변환, 노션 클라이언트
+  scripts/rfp_finder/       API 클라이언트, 필터, HWP/PDF 변환, 노션 클라이언트
 scheduler/                 Windows 작업 스케줄러 등록
 tests/                     pytest (실제 나라장터 응답·문서 샘플 포함)
 docs/                      설계 문서, 구현 계획, API 확인 기록
@@ -116,7 +116,7 @@ python -m venv .venv
 
 ## English summary
 
-**g2b-rfp-scout** is a Claude Code skill for Korean public-procurement bidding. It pulls open service tenders and pre-specifications from the KONEPS (나라장터) OpenAPI, downloads the RFP attachments and extracts their text (native HWP5/HWPX parsing, PDF), lets Claude score each notice against your team's capabilities, and writes the promising ones to a Notion database with a dashboard-style page per notice. Deterministic work (collection, filtering, conversion, Notion I/O, de-duplication) lives in a tested Python CLI; Claude only does the judgment. Setup takes about 15 minutes: a data.go.kr service key, a Notion internal integration, and a short interview that writes your team profile.
+**rfp-finder** is a Claude Code skill for Korean public-procurement bidding. It pulls open service tenders and pre-specifications from the KONEPS (나라장터) OpenAPI, downloads the RFP attachments and extracts their text (native HWP5/HWPX parsing, PDF), lets Claude score each notice against your team's capabilities, and writes the promising ones to a Notion database with a dashboard-style page per notice. Deterministic work (collection, filtering, conversion, Notion I/O, de-duplication) lives in a tested Python CLI; Claude only does the judgment. Setup takes about 15 minutes: a data.go.kr service key, a Notion internal integration, and a short interview that writes your team profile.
 
 ## License
 

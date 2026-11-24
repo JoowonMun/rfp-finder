@@ -6,9 +6,9 @@ from pathlib import Path
 
 
 def home() -> Path:
-    """사용자 설정 폴더. G2B_SCOUT_HOME으로 재정의 가능."""
-    env = os.environ.get("G2B_SCOUT_HOME")
-    return Path(env) if env else Path.home() / ".g2b-rfp-scout"
+    """사용자 설정 폴더. RFP_FINDER_HOME으로 재정의 가능."""
+    env = os.environ.get("RFP_FINDER_HOME")
+    return Path(env) if env else Path.home() / ".rfp-finder"
 
 
 def new_run_dir() -> Path:

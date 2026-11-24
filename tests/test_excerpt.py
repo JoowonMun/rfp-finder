@@ -1,4 +1,4 @@
-from g2b_scout.excerpt import make_excerpt
+from rfp_finder.excerpt import make_excerpt
 
 
 def test_excerpt_short_text_unchanged():

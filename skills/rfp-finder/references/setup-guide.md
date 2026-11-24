@@ -1,7 +1,7 @@
 # 처음 설정하기 (약 15분)
 
-설정 파일과 키는 모두 **내 PC의 설정 폴더**에 둔다: `%USERPROFILE%\.g2b-rfp-scout\`
-(예: `C:\Users\홍길동\.g2b-rfp-scout\`) 저장소나 대화창에는 절대 키를 붙여넣지 않는다.
+설정 파일과 키는 모두 **내 PC의 설정 폴더**에 둔다: `%USERPROFILE%\.rfp-finder\`
+(예: `C:\Users\홍길동\.rfp-finder\`) 저장소나 대화창에는 절대 키를 붙여넣지 않는다.
 
 ## 0. Python 패키지 설치
 
@@ -24,7 +24,7 @@ pip install -r "<플러그인 폴더>\requirements.txt"
 ## 2. 노션 통합 토큰
 
 1. [notion.so/profile/integrations](https://www.notion.so/profile/integrations) → **새 통합** (내부 통합)
-2. 이름 예: `g2b-rfp-scout`, 워크스페이스: 팀 워크스페이스
+2. 이름 예: `rfp-finder`, 워크스페이스: 팀 워크스페이스
 3. 기능에서 콘텐츠 읽기·업데이트·삽입 허용 → 저장 후 **내부 통합 시크릿** 복사
 
 ## 3. 팀 페이지에 통합 연결
@@ -34,7 +34,7 @@ pip install -r "<플러그인 폴더>\requirements.txt"
 
 ## 4. `.env` 파일 만들기
 
-`%USERPROFILE%\.g2b-rfp-scout\.env` 를 메모장으로 만들고:
+`%USERPROFILE%\.rfp-finder\.env` 를 메모장으로 만들고:
 
 ```
 DATA_GO_KR_SERVICE_KEY=여기에_Decoding_키
@@ -45,6 +45,6 @@ NOTION_TOKEN=여기에_노션_시크릿
 
 ## 5. 첫 실행
 
-Claude Code에서 `/g2b-rfp-scout` 또는 "나라장터 공고 찾아줘".
+Claude Code에서 `/rfp-finder` 또는 "나라장터 공고 찾아줘".
 - 팀 설정(config.yaml)은 Claude가 질문하며 만들어 준다.
 - 노션 DB가 없으면 DB를 둘 페이지 URL을 물어보고 만들어 준다. 이미 팀 DB가 있으면 그 DB의 ID를 `config.yaml`의 `notion.database_id`에 넣는다.

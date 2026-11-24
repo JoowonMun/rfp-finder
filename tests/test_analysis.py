@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from g2b_scout.analysis import AnalysisError, validate_analysis
+from rfp_finder.analysis import AnalysisError, validate_analysis
 
 GOOD = {
     "bid_no": "R26BK1", "fit": 2, "fit_reason": "일부 일치", "summary": "AI 플랫폼 구축",

@@ -3,8 +3,8 @@ import zipfile
 from datetime import datetime
 from urllib.parse import quote
 
-from g2b_scout.fetch import fetch_documents, filename_from_disposition, safe_filename
-from g2b_scout.models import Attachment, Notice
+from rfp_finder.fetch import fetch_documents, filename_from_disposition, safe_filename
+from rfp_finder.models import Attachment, Notice
 
 FILLER = "과업 내용 및 요구사항을 상세히 기술한다. " * 20
 

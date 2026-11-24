@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from g2b_scout.models import Attachment, DocResult, Notice
-from g2b_scout.notion_db import (
+from rfp_finder.models import Attachment, DocResult, Notice
+from rfp_finder.notion_db import (
     DB_PROPERTIES,
     NotionClient,
     build_blocks,
@@ -334,7 +334,7 @@ def test_upload_failure_returns_none(tmp_path):
 
 
 def test_retry_on_429(monkeypatch):
-    import g2b_scout.notion_db as nd
+    import rfp_finder.notion_db as nd
     monkeypatch.setattr(nd.time, "sleep", lambda s: None)
     s = FakeSession([
         Resp({}, status=429, headers={"Retry-After": "1"}),
@@ -376,7 +376,7 @@ def test_text_limits_count_utf16_units():
 
 def test_network_error_becomes_notion_error():
     import requests as rq
-    from g2b_scout.notion_db import NotionError
+    from rfp_finder.notion_db import NotionError
 
     class Down:
         def request(self, *a, **kw):

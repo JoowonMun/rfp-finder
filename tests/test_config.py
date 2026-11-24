@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from g2b_scout import paths
-from g2b_scout.config import ConfigError, load_config, load_secrets
-from g2b_scout.models import Attachment, Notice
+from rfp_finder import paths
+from rfp_finder.config import ConfigError, load_config, load_secrets
+from rfp_finder.models import Attachment, Notice
 
 MINIMAL = """
 team:
@@ -20,7 +20,7 @@ notion:
 
 @pytest.fixture
 def home(tmp_path, monkeypatch):
-    monkeypatch.setenv("G2B_SCOUT_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("RFP_FINDER_HOME", str(tmp_path / "home"))
     monkeypatch.chdir(tmp_path)
     for k in ("DATA_GO_KR_SERVICE_KEY", "NOTION_TOKEN"):
         monkeypatch.delenv(k, raising=False)

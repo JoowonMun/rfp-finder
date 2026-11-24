@@ -4,9 +4,9 @@ from datetime import datetime
 import pytest
 
 import scout
-from g2b_scout.g2b_api import G2BApiError
-from g2b_scout.models import Attachment, Notice
-from g2b_scout.notion_db import NotionError
+from rfp_finder.g2b_api import G2BApiError
+from rfp_finder.models import Attachment, Notice
+from rfp_finder.notion_db import NotionError
 
 CONFIG = """
 team:
@@ -75,7 +75,7 @@ def home(tmp_path, monkeypatch):
     h.mkdir()
     (h / "config.yaml").write_text(CONFIG, encoding="utf-8")
     (h / ".env").write_text("DATA_GO_KR_SERVICE_KEY=k\nNOTION_TOKEN=t\n", encoding="utf-8")
-    monkeypatch.setenv("G2B_SCOUT_HOME", str(h))
+    monkeypatch.setenv("RFP_FINDER_HOME", str(h))
     monkeypatch.chdir(tmp_path)
     for k in ("DATA_GO_KR_SERVICE_KEY", "NOTION_TOKEN"):
         monkeypatch.delenv(k, raising=False)
@@ -188,7 +188,7 @@ def test_fetch_fills_missing_bid_attachments(home, capsys, monkeypatch):
     seen = {}
 
     def fake_fetch(notice, out_dir, session=None):
-        from g2b_scout.models import DocResult
+        from rfp_finder.models import DocResult
         seen[notice.key] = [a.url for a in notice.attachments]
         return DocResult(ok=False, error="test")
     monkeypatch.setattr(scout, "fetch_documents", fake_fetch)
@@ -238,7 +238,7 @@ def test_publish_malformed_json_is_analysis_error(home, capsys):
 def test_fetch_one_notice_crash_does_not_abort_run(home, capsys, monkeypatch):
     api = FakeApi([mk("B1", "AI 전략"), mk("B2", "AI 기획")], [])
     _, out = run(capsys, ["candidates"], api=api, notion=FakeNotion())
-    from g2b_scout.models import DocResult
+    from rfp_finder.models import DocResult
 
     def flaky(notice, out_dir, session=None):
         if notice.key == "B1":

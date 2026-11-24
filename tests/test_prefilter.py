@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 
-from g2b_scout.config import Config
-from g2b_scout.models import Notice
-from g2b_scout.prefilter import keyword_hits, passes, select_candidates
+from rfp_finder.config import Config
+from rfp_finder.models import Notice
+from rfp_finder.prefilter import keyword_hits, passes, select_candidates
 
 NOW = datetime(2026, 11, 20, 9, 0)
 

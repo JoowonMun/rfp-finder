@@ -2,8 +2,8 @@ import os
 import zipfile
 from pathlib import Path
 
-from g2b_scout.convert import convert, pick_rfp
-from g2b_scout.convert import pdf as pdf_mod
+from rfp_finder.convert import convert, pick_rfp
+from rfp_finder.convert import pdf as pdf_mod
 
 DOCS = Path(__file__).parent / "fixtures" / "docs"
 
@@ -117,7 +117,7 @@ def test_pick_rfp_order():
 
 
 def test_hwp5_para_text_surrogate_pair():
-    from g2b_scout.convert.hwp5 import _para_text
+    from rfp_finder.convert.hwp5 import _para_text
     payload = "가😀나".encode("utf-16-le") + (13).to_bytes(2, "little")
     assert _para_text(payload) == "가😀나"
     lone = (0xD83D).to_bytes(2, "little") + "다".encode("utf-16-le")
