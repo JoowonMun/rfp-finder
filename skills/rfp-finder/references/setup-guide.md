@@ -34,7 +34,7 @@ pip install -r "<플러그인 폴더>\requirements.txt"
 
 ## 4. `.env` 파일 만들기
 
-`%USERPROFILE%\.rfp-finder\.env` 를 메모장으로 만들고:
+스킬 폴더의 [`.env.example`](../.env.example)을 `%USERPROFILE%\.rfp-finder\.env` 로 복사하고(또는 메모장으로 새로 만들고) 값을 채운다:
 
 ```
 DATA_GO_KR_SERVICE_KEY=여기에_Decoding_키

@@ -39,7 +39,7 @@
 pip install -r requirements.txt
 ```
 
-키 발급과 노션 연결은 [설정 가이드](skills/rfp-finder/references/setup-guide.md)를 따라 하면 15분이면 됩니다. 키는 `%USERPROFILE%\.rfp-finder\.env`에만 저장되고 저장소에는 올라가지 않습니다.
+키 발급과 노션 연결은 [설정 가이드](skills/rfp-finder/references/setup-guide.md)를 따라 하면 15분이면 됩니다. [`.env.example`](skills/rfp-finder/.env.example)을 `%USERPROFILE%\.rfp-finder\.env`로 복사해 키를 채우면 되고, 이 파일은 저장소에 올라가지 않습니다.
 
 ## 사용
 
@@ -96,7 +96,9 @@ skills/rfp-finder/
   SKILL.md                 Claude가 따르는 실행 절차
   references/              적합도 판단 지침, 설정 가이드
   scripts/scout.py         수집·다운로드·변환·노션 업로드 CLI (Claude가 호출)
-  scripts/rfp_finder/       API 클라이언트, 필터, HWP/PDF 변환, 노션 클라이언트
+  scripts/rfp_finder/      API 클라이언트, 필터, HWP/PDF 변환, 노션 클라이언트
+  config.example.yaml      팀 설정 예시
+  .env.example             키 설정 예시 (값은 비어 있음)
 scheduler/                 Windows 작업 스케줄러 등록
 tests/                     pytest (실제 나라장터 응답·문서 샘플 포함)
 docs/                      설계 문서, 구현 계획, API 확인 기록
