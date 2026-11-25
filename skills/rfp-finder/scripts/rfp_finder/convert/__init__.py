@@ -7,12 +7,15 @@ import zipfile
 from pathlib import Path
 
 from ..models import ConvertResult
-from . import hwp5, hwpx, pdf
+from . import docx, hwp5, hwpx, pdf
 
 MIN_TEXT = 200
 
 _OLE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
-_RANKS = [r"제안요청서", r"과업지시서|과업내용서", r"규격서|사양서"]
+# 앞에서부터 시도. zip 묶음은 안에 제안요청서가 들어 있는 경우가 많아 공고문보다 먼저 연다.
+# 공고문·양식은 텍스트가 충분해서 '변환 성공'으로 먼저 잡히면 제안요청서를 못 보게 되므로 맨 뒤.
+_RANKS = [r"제안요청서", r"과업지시서|과업내용서", r"규격서|사양서", r"\.zip$"]
+_LAST = [r"공고서|공고문|입찰공고", r"양식|서약|신청서|사유서|확약|위임|동의서"]
 
 
 class _PlainZip(Exception):
@@ -22,9 +25,12 @@ class _PlainZip(Exception):
 def pick_rfp(names: list[str]) -> list[str]:
     def rank(name: str) -> int:
         for i, pat in enumerate(_RANKS):
-            if re.search(pat, name):
+            if re.search(pat, name, re.I):
                 return i
-        return len(_RANKS)
+        for i, pat in enumerate(_LAST):
+            if re.search(pat, name):
+                return len(_RANKS) + 1 + i
+        return len(_RANKS)  # 그 밖의 파일: zip 다음, 공고문 앞
 
     return sorted(names, key=rank)  # 안정 정렬 → 같은 등급은 원래 순서
 
@@ -49,6 +55,8 @@ def _extract_single(path: Path) -> str:
         with zipfile.ZipFile(path) as zf:
             if hwpx.is_hwpx(zf):
                 return hwpx.extract(path)
+            if docx.is_docx(zf):
+                return docx.extract(path)
         raise _PlainZip()
     raise ValueError(f"지원하지 않는 형식: {path.suffix or '확장자 없음'}")
 

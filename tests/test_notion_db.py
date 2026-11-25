@@ -503,3 +503,17 @@ def test_archive_older_versions_keeps_current():
     assert n == 1
     assert s.calls[0][2]["json"]["filter"]["rich_text"] == {"starts_with": "R1-"}
     assert s.calls[1][0] == "PATCH" and s.calls[1][1].endswith("/pages/p0")
+
+
+def test_rfp_status_failed_when_only_announcement_read():
+    a = analysis(2)
+    a["detail"]["rfp_read"] = False
+    p = build_properties(notice(), a, OK_DOC, None, TODAY)
+    assert p["RFP 분석"]["select"]["name"] == "실패"
+    blocks = build_blocks(a, OK_DOC, notice(), TODAY)
+    assert blocks[0]["type"] == "callout" and "공고문만 보고 판단" in _plain(blocks[0]["callout"]["rich_text"])
+
+
+def test_rfp_status_done_when_read():
+    p = build_properties(notice(), analysis(2), OK_DOC, None, TODAY)
+    assert p["RFP 분석"]["select"]["name"] == "완료"

@@ -15,10 +15,10 @@ team:
     (선택) 대표 수행 실적. 참가 자격(실적 요건) 판단에 도움이 됩니다.
 
 filters:
-  include_keywords: [AI, 인공지능, 생성형, AX, 디지털전환, ISP, ISMP, 데이터, LLM]
+  include_keywords: [AI, 인공지능, 생성형, LLM, RAG, 챗봇, 에이전트, 머신러닝, 딥러닝, AX]   # "데이터", "ISP"처럼 넓은 말은 일반 정보화까지 끌어옴
   exclude_keywords: [유지보수, 유지관리, 구매, 임차, 물품, 공사]
-  # 제목에 있으면 가장 먼저 분석 (팀이 특히 원하는 사업 유형)
-  priority_keywords: [ISP, ISMP, 전략, 컨설팅, AX, 로드맵, 마스터플랜, PMO]
+  # 제목에 많이 걸릴수록 먼저 분석 (팀이 특히 원하는 사업 유형)
+  priority_keywords: [구축, 개발, 생성형, LLM, RAG, 챗봇, 에이전트, 모델]
   budget_min_krw: 50000000       # 비워두면 하한 없음
   budget_max_krw: 3000000000     # 비워두면 상한 없음
   min_days_to_deadline: 5        # 본공고에만 적용

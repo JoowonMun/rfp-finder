@@ -124,3 +124,25 @@ def test_hwp5_para_text_surrogate_pair():
     out = _para_text(lone)
     out.encode("utf-8")  # 인코딩 가능해야 함
     assert out.endswith("다")
+
+
+def _make_docx(path, paragraphs):
+    import zipfile
+    body = "".join(f"<w:p><w:r><w:t>{p}</w:t></w:r></w:p>" for p in paragraphs)
+    xml = ('<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/'
+           f'wordprocessingml/2006/main"><w:body>{body}</w:body></w:document>')
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("[Content_Types].xml", "<Types/>")
+        zf.writestr("word/document.xml", xml)
+
+
+def test_docx_extract(tmp_path):
+    f = tmp_path / "02_제안요청서.docx"
+    _make_docx(f, ["제안요청서", "과업 범위: 생성형 AI 챗봇 구축 " * 20])
+    r = convert(f)
+    assert r.ok and "제안요청서\n" in r.text and "생성형 AI 챗봇 구축" in r.text
+
+
+def test_pick_rfp_announcement_and_forms_last_zip_before_other():
+    names = ["01_입찰공고문.pdf", "03_첨부 양식(청렴서약).docx", "붙임문서.zip", "사업 개요.pdf", "02_제안요청서.docx"]
+    assert pick_rfp(names) == ["02_제안요청서.docx", "붙임문서.zip", "사업 개요.pdf", "01_입찰공고문.pdf", "03_첨부 양식(청렴서약).docx"]

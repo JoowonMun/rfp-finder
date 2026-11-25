@@ -77,6 +77,11 @@ def _kst(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S") + "+09:00"
 
 
+def rfp_read(analysis: dict, doc: DocResult) -> bool:
+    """제안요청서를 실제로 읽었는지. 파일 변환에 성공했어도 공고문만 읽었다면 Claude가 rfp_read=false로 적는다."""
+    return bool(doc.ok and (analysis.get("detail") or {}).get("rfp_read", True))
+
+
 def build_properties(
     notice: Notice, analysis: dict, doc: DocResult, file_upload_id: str | None, today: date
 ) -> dict:
@@ -104,7 +109,7 @@ def build_properties(
         "한줄 요약": {"rich_text": _rt(summary)},
         "제안요청서": {"files": files},
         "원문 링크": {"url": link},
-        "RFP 분석": {"select": {"name": "완료" if doc.ok else "실패"}},
+        "RFP 분석": {"select": {"name": "완료" if rfp_read(analysis, doc) else "실패"}},
         "공고번호": {"rich_text": _rt(notice.key)},
         "수집일": {"date": {"start": today.isoformat()}},
     }
@@ -253,6 +258,8 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date) ->
     blocks: list[dict] = []
     if not doc.ok:
         blocks.append(_callout("⚠ 제안요청서 변환 실패 — 원문 직접 확인 필요", "⚠️", "red_background"))
+    elif not rfp_read(analysis, doc):
+        blocks.append(_callout("⚠ 첨부에서 제안요청서를 찾지 못해 공고문만 보고 판단 — 원문 직접 확인 필요", "⚠️", "red_background"))
 
     duration = d.get("duration") or ""
     blocks.append(_columns([
