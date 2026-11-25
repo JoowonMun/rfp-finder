@@ -17,6 +17,12 @@ def test_validate_ok():
     assert validate_analysis(copy.deepcopy(GOOD))["fit"] == 2
 
 
+def test_validate_accepts_fit_0_to_3():
+    for f in (0, 1, 2, 3):
+        g = copy.deepcopy(GOOD); g["fit"] = f
+        assert validate_analysis(g)["fit"] == f
+
+
 def test_validate_rejects_fit_4():
     bad = copy.deepcopy(GOOD)
     bad["fit"] = 4

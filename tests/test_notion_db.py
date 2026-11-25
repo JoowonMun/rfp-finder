@@ -139,7 +139,7 @@ def test_dashboard_cards():
 
 
 def test_card_colors_and_labels_by_fit():
-    for fit, color, label in [(2, "yellow_background", "조건부 검토"), (1, "gray_background", "자동제외")]:
+    for fit, color, label in [(2, "yellow_background", "검토 권장"), (1, "gray_background", "참고")]:
         texts, cl = _cards(dash(fit=fit))
         assert label in texts[0]
         assert cl["column_list"]["children"][0]["column"]["children"][0]["callout"]["color"] == color

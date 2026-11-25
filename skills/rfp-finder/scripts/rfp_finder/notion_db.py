@@ -110,7 +110,7 @@ def build_properties(
     }
 
 
-FIT_CARD = {3: ("바로 검토", "green_background"), 2: ("조건부 검토", "yellow_background"), 1: ("자동제외", "gray_background")}
+FIT_CARD = {3: ("바로 검토", "green_background"), 2: ("검토 권장", "yellow_background"), 1: ("참고", "gray_background")}
 WEEKDAY = "월화수목금토일"
 
 

@@ -207,16 +207,26 @@ def _set_fit(run_dir, fit):
     p.write_text(json.dumps(d), encoding="utf-8")
 
 
-def test_publish_fit1_is_recorded_locally_not_in_notion(home, capsys):
+def test_publish_fit0_is_recorded_locally_not_in_notion(home, capsys):
     notion = FakeNotion()
     run_dir = _prepare_run(home, capsys, notion)
-    _set_fit(run_dir, 1)
+    _set_fit(run_dir, 0)
     code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1"], notion=notion)
     assert code == 0 and out["status"] == "excluded"
     assert notion.created == [] and notion.uploads == []
     assert "B1" in json.loads((home / "excluded.json").read_text(encoding="utf-8"))
     code, out = run(capsys, ["summary", "--run", run_dir])
-    assert out["by_fit"]["1"] == 1 and out["published"] == 0 and out["excluded"] == 1
+    assert out["by_fit"]["0"] == 1 and out["published"] == 0 and out["excluded"] == 1
+
+
+def test_publish_fit1_goes_to_notion(home, capsys):
+    notion = FakeNotion()
+    run_dir = _prepare_run(home, capsys, notion)
+    _set_fit(run_dir, 1)
+    code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1"], notion=notion)
+    assert code == 0 and out["status"] == "created" and len(notion.created) == 1
+    code, out = run(capsys, ["summary", "--run", run_dir])
+    assert out["by_fit"]["1"] == 1 and out["published"] == 1 and out["excluded"] == 0
 
 
 def test_candidates_skips_locally_excluded(home, capsys):
@@ -276,10 +286,10 @@ def test_publish_replace_rebuilds_existing_page(home, capsys):
     assert out["status"] == "created" and notion.archived == ["B1"] and notion.created == [("B1", "upl-1")]
 
 
-def test_publish_replace_fit1_archives_and_excludes(home, capsys):
+def test_publish_replace_fit0_archives_and_excludes(home, capsys):
     notion = FakeNotion()
     run_dir = _prepare_run(home, capsys, notion)
     notion.existing.add("B1")
-    _set_fit(run_dir, 1)
+    _set_fit(run_dir, 0)
     code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1", "--replace"], notion=notion)
     assert out["status"] == "excluded" and notion.archived == ["B1"] and notion.created == []

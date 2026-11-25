@@ -210,11 +210,11 @@ def cmd_publish(args, ctx) -> dict:
     if args.replace:  # 기존 페이지를 지우고 새로 만든다 (재분석·레이아웃 변경용)
         notion.archive_key(db, notice.key)
 
-    if analysis["fit"] == 1:  # 자동제외: 노션 표에는 올리지 않고 로컬에만 기록
+    if analysis["fit"] == 0:  # 제외: 맞지 않는 공고는 노션 표에 올리지 않고 로컬에만 기록
         excluded.add(notice.key, notice.title, ctx["now"].date())
         published[notice.key] = {**record, "excluded": True}
         _write_json(run_dir / "published.json", published)
-        _log(f"publish {notice.key}: fit=1 → 자동제외(로컬 기록)")
+        _log(f"publish {notice.key}: fit=0 → 제외(로컬 기록)")
         return {"key": notice.key, "status": "excluded", "page_url": None}
 
     if notion.has_key(db, notice.key):
@@ -241,7 +241,7 @@ def cmd_summary(args, ctx) -> dict:
     run_dir = Path(args.run)
     cands = _read_json(run_dir / "candidates.json")
     published = _read_json(run_dir / "published.json", default={})
-    by_fit = {"3": 0, "2": 0, "1": 0}
+    by_fit = {"3": 0, "2": 0, "1": 0, "0": 0}
     for p in published.values():
         by_fit[str(p["fit"])] += 1
     top = [{"title": p["title"], "deadline": p["deadline"], "url": p["url"]} for p in published.values() if p["fit"] == 3]

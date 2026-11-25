@@ -12,8 +12,8 @@ class AnalysisError(Exception):
 def validate_analysis(data: dict) -> dict:
     if not isinstance(data, dict):
         raise AnalysisError("분석 결과가 JSON 객체가 아님")
-    if data.get("fit") not in (1, 2, 3) or isinstance(data.get("fit"), bool):
-        raise AnalysisError(f"fit 은 1~3 정수여야 함 (현재: {data.get('fit')!r})")
+    if data.get("fit") not in (0, 1, 2, 3) or isinstance(data.get("fit"), bool):
+        raise AnalysisError(f"fit 은 0~3 정수여야 함 (0=제외, 1~3=별 개수, 현재: {data.get('fit')!r})")
     for k in ("summary", "fit_reason"):
         if not isinstance(data.get(k), str) or not data[k].strip():
             raise AnalysisError(f"{k} 가 비어 있음")
