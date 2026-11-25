@@ -207,6 +207,10 @@ def cmd_publish(args, ctx) -> dict:
               "deadline": notice.deadline.isoformat() if notice.deadline else None, "excluded": False}
 
     notion = _notion(ctx, secrets)
+    if hasattr(notion, "ensure_properties"):
+        added = notion.ensure_properties(db)
+        if added:
+            _log(f"노션 표에 새 열 추가: {', '.join(added)}")
     if args.replace:  # 기존 페이지를 지우고 새로 만든다 (재분석·레이아웃 변경용)
         notion.archive_key(db, notice.key)
 

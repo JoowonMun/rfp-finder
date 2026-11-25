@@ -31,6 +31,7 @@ DB_PROPERTIES: dict[str, dict] = {
     "발주기관": {"rich_text": {}},
     "예산": {"number": {"format": "won"}},
     "마감일": {"date": {}},
+    "사업기간": {"rich_text": {}},
     "적합도": _select({"★★★": "green", "★★": "yellow", "★": "gray"}),
     "한줄 요약": {"rich_text": {}},
     "제안요청서": {"files": {}},
@@ -82,6 +83,12 @@ def rfp_read(analysis: dict, doc: DocResult) -> bool:
     return bool(doc.ok and (analysis.get("detail") or {}).get("rfp_read", True))
 
 
+def _period(analysis: dict) -> str:
+    d = analysis.get("detail") or {}
+    ov = d.get("overview") if isinstance(d.get("overview"), dict) else {}
+    return str(d.get("duration") or ov.get("period") or "")
+
+
 def build_properties(
     notice: Notice, analysis: dict, doc: DocResult, file_upload_id: str | None, today: date
 ) -> dict:
@@ -105,6 +112,7 @@ def build_properties(
         "발주기관": {"rich_text": _rt(notice.agency)},
         "예산": {"number": notice.budget_krw},
         "마감일": {"date": {"start": _kst(notice.deadline)} if notice.deadline else None},
+        "사업기간": {"rich_text": _rt(_period(analysis))},
         "적합도": {"select": {"name": FIT_LABEL[fit]}},
         "한줄 요약": {"rich_text": _rt(summary)},
         "제안요청서": {"files": files},
@@ -380,6 +388,14 @@ class NotionClient:
                 self._request("PATCH", f"/pages/{row['id']}", json={"archived": True})
                 n += 1
         return n
+
+    def ensure_properties(self, database_id: str) -> list[str]:
+        """예전에 만든 표에 새로 생긴 열(예: 사업기간)이 없으면 추가한다."""
+        have = set(self.get_database(database_id).get("properties", {}))
+        missing = {k: v for k, v in DB_PROPERTIES.items() if k not in have}
+        if missing:
+            self._request("PATCH", f"/databases/{database_id}", json={"properties": missing})
+        return list(missing)
 
     def get_database(self, database_id: str) -> dict:
         return self._request("GET", f"/databases/{database_id}")

@@ -517,3 +517,26 @@ def test_rfp_status_failed_when_only_announcement_read():
 def test_rfp_status_done_when_read():
     p = build_properties(notice(), analysis(2), OK_DOC, None, TODAY)
     assert p["RFP 분석"]["select"]["name"] == "완료"
+
+
+def test_period_property_from_duration_or_overview():
+    a = analysis(2)
+    a["detail"]["duration"] = "6개월"
+    assert text(build_properties(notice(), a, OK_DOC, None, TODAY), "사업기간") == "6개월"
+    a["detail"].pop("duration")
+    a["detail"]["overview"] = {"period": "계약일부터 2026년 12월 31일까지"}
+    assert text(build_properties(notice(), a, OK_DOC, None, TODAY), "사업기간") == "계약일부터 2026년 12월 31일까지"
+
+
+def test_ensure_properties_adds_missing_columns():
+    existing = {k: v for k, v in DB_PROPERTIES.items() if k != "사업기간"}
+    s = FakeSession([Resp({"properties": existing}), Resp({})])
+    added = NotionClient("tok", session=s).ensure_properties("db1")
+    assert added == ["사업기간"]
+    assert s.calls[1][0] == "PATCH" and s.calls[1][2]["json"]["properties"] == {"사업기간": {"rich_text": {}}}
+
+
+def test_ensure_properties_noop_when_complete():
+    s = FakeSession([Resp({"properties": DB_PROPERTIES})])
+    assert NotionClient("tok", session=s).ensure_properties("db1") == []
+    assert len(s.calls) == 1
