@@ -89,10 +89,16 @@ def test_overview_may_be_object():
         validate_analysis(bad)
 
 
-def test_types_must_be_known_tags():
+def test_type_must_be_known_tag():
     g = copy.deepcopy(GOOD)
-    g["types"] = ["AI 구축", "PMO"]
-    assert validate_analysis(g)["types"] == ["AI 구축", "PMO"]
-    g["types"] = ["아무거나"]
-    with pytest.raises(AnalysisError, match="types"):
+    g["type"] = "PMO"
+    assert validate_analysis(g)["type"] == "PMO"
+    g["type"] = "아무거나"
+    with pytest.raises(AnalysisError, match="type"):
         validate_analysis(g)
+
+
+def test_legacy_types_list_uses_first():
+    g = copy.deepcopy(GOOD)
+    g["types"] = ["ISP", "PMO"]
+    assert validate_analysis(g)["type"] == "ISP"

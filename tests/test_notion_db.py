@@ -89,21 +89,34 @@ def test_budget_none():
 
 
 def _tags(p):
-    return [o["name"] for o in p["사업유형"]["multi_select"]]
+    sel = p["사업유형"]["select"]
+    return [sel["name"]] if sel else []
 
 
-def test_project_type_tags():
+def test_project_type_single_select():
     a = analysis()
-    a["types"] = ["AI 구축", "ISP"]
-    assert _tags(build_properties(notice(), a, OK_DOC, None, TODAY)) == ["AI 구축", "ISP"]
-    assert "한줄 요약" not in build_properties(notice(), a, OK_DOC, None, TODAY)
+    a["type"] = "AI 구축"
+    p = build_properties(notice(), a, OK_DOC, None, TODAY)
+    assert p["사업유형"] == {"select": {"name": "AI 구축"}}
+    assert "한줄 요약" not in p
+    a2 = analysis()
+    a2["types"] = ["ISP", "PMO"]  # 예전 형식: 첫 값만
+    assert _tags(build_properties(notice(), a2, OK_DOC, None, TODAY)) == ["ISP"]
+    assert build_properties(notice(), analysis(), OK_DOC, None, TODAY)["사업유형"] == {"select": None}
 
 
-def test_revised_notice_tagged():
+def test_ensure_properties_converts_multi_to_single_select():
+    existing = {**DB_PROPERTIES, "사업유형": {"type": "multi_select", "multi_select": {}}}
+    existing = {k: ({"type": next(iter(v)), **v} if k != "사업유형" else v) for k, v in existing.items()}
+    s = FakeSession([Resp({"properties": existing}), Resp({})])
+    added = NotionClient("tok", session=s).ensure_properties("db1")
+    assert added == ["사업유형"]
+    assert "select" in s.calls[1][2]["json"]["properties"]["사업유형"]
+
+
+def test_revised_notice_not_tagged():
     p = build_properties(notice(ord_="001"), analysis(), OK_DOC, None, TODAY)
-    assert "정정공고" in _tags(p)
-    p0 = build_properties(notice(ord_="000"), analysis(), OK_DOC, None, TODAY)
-    assert "정정공고" not in _tags(p0)
+    assert "정정공고" not in _tags(p)
 
 
 def test_ensure_properties_removes_obsolete_summary_column():
