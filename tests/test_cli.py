@@ -308,3 +308,16 @@ def test_publish_archives_older_versions_of_same_bid(home, capsys):
     code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1"], notion=notion)
     assert out["status"] == "created"
     assert notion.archived_old == ["B1-000"] and "B1-000" not in notion.existing
+
+
+def test_summary_counts_announcement_only_as_rfp_failed(home, capsys):
+    notion = FakeNotion()
+    run_dir = _prepare_run(home, capsys, notion)
+    from pathlib import Path
+    p = Path(run_dir) / "analysis" / "B1.json"
+    d = json.loads(p.read_text(encoding="utf-8"))
+    d["detail"]["rfp_read"] = False
+    p.write_text(json.dumps(d), encoding="utf-8")
+    run(capsys, ["publish", "--run", run_dir, "--key", "B1"], notion=notion)
+    code, out = run(capsys, ["summary", "--run", run_dir])
+    assert out["published"] == 1 and out["rfp_failed"] == 1

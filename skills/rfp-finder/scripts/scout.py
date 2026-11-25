@@ -24,7 +24,7 @@ from rfp_finder.analysis import AnalysisError, validate_analysis  # noqa: E402
 from rfp_finder.config import ConfigError, config_path, load_config, load_secrets  # noqa: E402
 from rfp_finder.fetch import fetch_documents, safe_filename  # noqa: E402
 from rfp_finder.models import DocResult, Notice  # noqa: E402
-from rfp_finder.notion_db import NotionClient, NotionError  # noqa: E402
+from rfp_finder.notion_db import NotionClient, NotionError, rfp_read  # noqa: E402
 from rfp_finder.prefilter import select_candidates  # noqa: E402
 
 
@@ -203,7 +203,7 @@ def cmd_publish(args, ctx) -> dict:
     doc = DocResult.from_dict(doc_raw) if doc_raw else DocResult(ok=False, error="문서 미처리")
 
     published = _read_json(run_dir / "published.json", default={})
-    record = {"fit": analysis["fit"], "rfp_ok": doc.ok, "url": None, "title": notice.title,
+    record = {"fit": analysis["fit"], "rfp_ok": rfp_read(analysis, doc), "url": None, "title": notice.title,
               "deadline": notice.deadline.isoformat() if notice.deadline else None, "excluded": False}
 
     notion = _notion(ctx, secrets)
