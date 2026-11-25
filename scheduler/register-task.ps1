@@ -10,6 +10,7 @@
 param(
     [string]$Time = "08:30",
     [string]$WorkingDir = "",   # 기본: %USERPROFILE%\.rfp-finder (개발 중 .env 가 저장소에 있으면 그 폴더)
+    [string]$Model = "sonnet",  # 무인 실행에 쓸 모델. 제안요청서 전문을 읽어 토큰이 많이 들므로 기본은 sonnet
     [switch]$Unregister
 )
 
@@ -38,7 +39,7 @@ $prompt = "/rfp-finder 무인 실행입니다. 질문하지 말고 끝까지 진
 $allowed = "'Bash(python:*)' 'PowerShell(python:*)' 'Read' 'Write'"
 $cmd = "`$log = Join-Path '$logs' ('scheduled-' + (Get-Date -Format yyyyMMdd) + '.log'); " +
        "Set-Location '$WorkingDir'; " +
-       "& '$claude' -p '$prompt' --add-dir '$home_' --allowedTools $allowed *>> `$log"
+       "& '$claude' -p '$prompt' --model '$Model' --add-dir '$home_' --allowedTools $allowed *>> `$log"
 
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -WorkingDirectory $WorkingDir `
     -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"$cmd`""

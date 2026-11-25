@@ -50,6 +50,7 @@ Claude Code에서 `/rfp-finder` 또는 "나라장터 공고 찾아줘".
 ```powershell
 .\scheduler\register-task.ps1                  # 평일 08:30
 .\scheduler\register-task.ps1 -Time "07:50"
+.\scheduler\register-task.ps1 -Model opus      # 무인 실행 모델 (기본 sonnet. 제안요청서 전문을 읽어 토큰이 많이 듭니다)
 .\scheduler\register-task.ps1 -Unregister
 ```
 
