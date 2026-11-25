@@ -17,3 +17,16 @@ def test_excerpt_prioritizes_sections():
     assert "요구사항 상세: AI 모델 구축" in out
     assert "[... 일부 생략 ...]" in out
     assert "부속서류" not in out
+
+
+def test_default_keeps_full_long_rfp():
+    t = "Ⅰ. 사업 개요\n" + "가" * 150_000 + "\nⅤ. 평가 기준\n기술 90 가격 10"
+    assert make_excerpt(t) == t  # 30만 자 이하는 자르지 않음
+
+
+def test_over_cap_keeps_requirements_and_evaluation_first():
+    front = "\n".join(["Ⅱ. 과업 내용"] + ["과업 서술 " + "가" * 50] * 60)
+    req = "\n".join(["Ⅲ. 요구사항 세부내용"] + ["SFR-001 요구사항 정의 " + "다" * 30] * 5)
+    ev = "\n".join(["Ⅴ. 제안서 평가 기준"] + ["기술평가 90점 " + "라" * 30] * 3)
+    out = make_excerpt(front + "\n" + req + "\n" + ev, max_chars=1500)
+    assert "SFR-001 요구사항 정의" in out and "기술평가 90점" in out

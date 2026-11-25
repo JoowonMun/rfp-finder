@@ -26,7 +26,7 @@ filters:
 
 collect:
   lookback_days: 30              # 최근 N일 등록 공고 중 마감 안 지난 것을 봄 (용역은 대부분 30일 안에 마감)
-  max_per_run: 15                # 한 번에 분석할 공고 수 상한 (첫 실행은 밀린 공고가 많으니 30 정도로)
+  max_per_run: 7                 # 한 번에 분석할 공고 수. 제안요청서 전문을 읽어서 건당 시간이 걸림. 자주 돌려 조금씩 쌓는 방식 추천
 
 notion:
   database_id: ""                # scout.py setup-notion 이 채워 줍니다

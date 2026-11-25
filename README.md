@@ -66,7 +66,7 @@ Claude Code에서 `/rfp-finder` 또는 "나라장터 공고 찾아줘".
 | `filters.min_days_to_deadline` | 본공고 마감까지 최소 남은 일수 | 5 |
 | `filters.include_pre_spec` | 사전규격 포함 | true |
 | `collect.lookback_days` | 최근 N일 등록 공고를 조회 | 30 |
-| `collect.max_per_run` | 한 번에 분석할 공고 수 (Claude 사용량과 비례) | 15 |
+| `collect.max_per_run` | 한 번에 분석할 공고 수. 제안요청서 전문을 읽으므로 적게 두고 자주 돌리는 방식 추천 (Claude 사용량과 비례) | 7 |
 | `notion.max_upload_mb` | 노션 파일 업로드 한도 (무료 5MB) | 5 |
 
 전체 예시: [config.example.yaml](skills/rfp-finder/config.example.yaml)

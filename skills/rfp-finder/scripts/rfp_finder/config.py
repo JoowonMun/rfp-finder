@@ -28,7 +28,7 @@ class Config:
     min_days_to_deadline: int = 5
     include_pre_spec: bool = True
     lookback_days: int = 30
-    max_per_run: int = 15
+    max_per_run: int = 7
     max_upload_mb: int = 5
 
 
@@ -84,7 +84,7 @@ def load_config(path: Path | None = None) -> Config:
         min_days_to_deadline=int(filters.get("min_days_to_deadline", 5)),
         include_pre_spec=bool(filters.get("include_pre_spec", True)),
         lookback_days=int(collect.get("lookback_days", 30)),
-        max_per_run=int(collect.get("max_per_run", 15)),
+        max_per_run=int(collect.get("max_per_run", 7)),
         max_upload_mb=int(notion.get("max_upload_mb", 5)),
     )
 

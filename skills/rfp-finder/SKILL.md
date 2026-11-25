@@ -53,7 +53,7 @@ SCOUT fetch --run "<run_dir>"    → 공고별 ok / excerpt_path
 `<run_dir>/candidates.json`의 `selected` 순서대로, **각 공고마다**:
 
 1. 메타데이터(공고명·기관·예산·마감·구분)를 확인한다.
-2. `fetch` 결과에서 그 공고가 `ok: true`면 `excerpt_path` 파일을 읽는다. `ok: false`면 메타데이터만으로 판단하고 `rfp_read: false`로 둔다.
+2. `fetch` 결과에서 그 공고가 `ok: true`면 `excerpt_path` 파일을 **처음부터 끝까지** 읽는다. 제안요청서 전문이라 길면(수만~십수만 자) Read의 offset/limit으로 나눠 끝까지 읽는다. 요구사항 세부내용 표와 평가 기준은 문서 뒷부분에 있으니 앞부분만 읽고 멈추지 않는다. `ok: false`면 메타데이터만으로 판단하고 `rfp_read: false`로 둔다.
 3. 팀 정보는 `home`의 `config.yaml` → `team.capabilities`, `team.past_projects`.
 4. `references/analysis-guide.md` 기준으로 분석 JSON을 만들어 `<run_dir>/analysis/<공고키>.json`에 저장한다. (`<공고키>`는 candidates의 `key` 그대로, 파일명에 못 쓰는 문자는 `_`로)
 5. 바로 업로드: `SCOUT publish --run "<run_dir>" --key "<공고키>"`

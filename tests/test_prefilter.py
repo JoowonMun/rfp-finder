@@ -75,7 +75,7 @@ def test_dedupe_and_cap_order():
     notices = [notice(f"AI 사업 {i}", key=f"k{i}", days=30 - i) for i in range(17)]
     notices.append(notice("AI 인공지능 데이터 ISP", key="best", days=40))
     notices.append(notice("AI 이미 있음", key="dup", days=10))
-    selected, overflow = select_candidates(notices, {"dup"}, cfg(), NOW)
+    selected, overflow = select_candidates(notices, {"dup"}, cfg(max_per_run=15), NOW)
     assert len(selected) == 15 and len(overflow) == 3
     assert selected[0].key == "best"            # 매칭 수 최다
     assert selected[1].key == "k16"             # 그다음은 마감 빠른 순 (days=14)
