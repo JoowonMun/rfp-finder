@@ -279,7 +279,6 @@ def build_blocks(analysis: dict, doc: DocResult, notice: Notice, today: date) ->
         [_deadline_card(notice, today)],
         [_card("평가", "\n".join(_eval_lines(d.get("evaluation"))), [], "📊", "purple_background")],
     ]))
-    blocks.append(_callout(analysis.get("fit_reason", ""), "💬", "gray_background"))
 
     blocks.append(_block("heading_3", "📌 사업 개요"))
     blocks.append(_overview_box(d.get("overview")))

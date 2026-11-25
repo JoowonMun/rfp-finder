@@ -190,7 +190,7 @@ def _h3(blocks):
 def test_dashboard_layout_order():
     blocks = dash()
     t = _types(blocks)
-    assert t[:2] == ["column_list", "callout"]
+    assert t[:2] == ["column_list", "heading_3"]  # 카드 바로 다음이 사업 개요 (판단 코멘트 상자 없음)
     assert "table" not in t
     assert _h3(blocks) == ["📌 사업 개요", "📋 주요 요구사항", "☑ 참가 자격 체크리스트", "📊 평가 방식"]
     assert "toggle" not in t  # 원문 발췌 토글은 넣지 않음
@@ -498,13 +498,11 @@ def _bold_parts(rich):
     return [r["text"]["content"] for r in rich if r.get("annotations", {}).get("bold")]
 
 
-def test_fit_reason_keywords_bold():
+def test_fit_reason_not_shown_on_page():
     a = analysis(3)
-    a["fit_reason"] = "**RAG 학습튜터** 직접 개발이라 주력과 일치. 다만 **기간 1개월**"
+    a["fit_reason"] = "판단 코멘트 고유문구"
     blocks = build_blocks(a, OK_DOC, notice(), TODAY)
-    rich = blocks[1]["callout"]["rich_text"]
-    assert _plain(rich) == "RAG 학습튜터 직접 개발이라 주력과 일치. 다만 기간 1개월"
-    assert _bold_parts(rich) == ["RAG 학습튜터", "기간 1개월"]
+    assert all("판단 코멘트 고유문구" not in _plain(b[b["type"]].get("rich_text", [])) for b in blocks)
 
 
 def test_why_fit_and_gaps_keywords_bold():
