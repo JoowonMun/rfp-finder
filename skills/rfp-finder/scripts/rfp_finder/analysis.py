@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 DETAIL_TEXT = ("overview", "evaluation")
+# 노션 '사업유형' 태그로 쓰는 값 (한 공고에 여러 개 가능)
+PROJECT_TYPES = ("AI 구축", "AI 개발 컨설팅", "ISP", "ISMP", "전략·마스터플랜", "PMO", "연구용역")
 DETAIL_LIST = ("requirements", "why_fit", "gaps", "eligibility_risks")
 
 
@@ -17,6 +19,9 @@ def validate_analysis(data: dict) -> dict:
     for k in ("summary", "fit_reason"):
         if not isinstance(data.get(k), str) or not data[k].strip():
             raise AnalysisError(f"{k} 가 비어 있음")
+    types = data.get("types", [])
+    if not isinstance(types, list) or any(t not in PROJECT_TYPES for t in types):
+        raise AnalysisError(f"types 는 {list(PROJECT_TYPES)} 중에서 고른 목록이어야 함 (현재: {types!r})")
     detail = data.get("detail")
     if not isinstance(detail, dict):
         raise AnalysisError("detail 객체 없음")

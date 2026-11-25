@@ -87,3 +87,12 @@ def test_overview_may_be_object():
     bad["detail"]["overview"] = {"client": 3}
     with pytest.raises(AnalysisError, match="overview"):
         validate_analysis(bad)
+
+
+def test_types_must_be_known_tags():
+    g = copy.deepcopy(GOOD)
+    g["types"] = ["AI 구축", "PMO"]
+    assert validate_analysis(g)["types"] == ["AI 구축", "PMO"]
+    g["types"] = ["아무거나"]
+    with pytest.raises(AnalysisError, match="types"):
+        validate_analysis(g)

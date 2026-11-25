@@ -25,6 +25,8 @@ def _select(options: dict[str, str]) -> dict:
     return {"select": {"options": [{"name": n, "color": c} for n, c in options.items()]}}
 
 
+REMOVED_PROPERTIES = ("한줄 요약",)  # 예전 표에 있던 열. ensure_properties 가 지운다
+
 DB_PROPERTIES: dict[str, dict] = {
     "공고명": {"title": {}},
     "구분": _select({"본공고": "blue", "사전규격": "purple"}),
@@ -33,7 +35,11 @@ DB_PROPERTIES: dict[str, dict] = {
     "마감일": {"date": {}},
     "사업기간": {"rich_text": {}},
     "적합도": _select({"★★★": "green", "★★": "yellow", "★": "gray"}),
-    "한줄 요약": {"rich_text": {}},
+    "사업유형": {"multi_select": {"options": [
+        {"name": n, "color": c} for n, c in [
+            ("AI 구축", "green"), ("AI 개발 컨설팅", "blue"), ("ISP", "orange"), ("ISMP", "brown"),
+            ("전략·마스터플랜", "pink"), ("PMO", "purple"), ("연구용역", "gray"), ("정정공고", "red"),
+        ]]}},
     "제안요청서": {"files": {}},
     "원문 링크": {"url": {}},
     "RFP 분석": _select({"완료": "green", "실패": "red"}),
@@ -93,9 +99,9 @@ def build_properties(
     notice: Notice, analysis: dict, doc: DocResult, file_upload_id: str | None, today: date
 ) -> dict:
     fit = int(analysis["fit"])
-    summary = analysis.get("summary", "")
+    tags = list(dict.fromkeys(analysis.get("types") or []))
     if notice.kind == "bid" and notice.bid_ord not in FIRST_ORD:
-        summary = "[정정공고] " + summary
+        tags.append("정정공고")
 
     link = notice.detail_url or doc.rfp_url or (notice.attachments[0].url if notice.attachments else None)
     file_name = (doc.rfp_name or "제안요청서")[:FILE_NAME_LIMIT]
@@ -114,7 +120,7 @@ def build_properties(
         "마감일": {"date": {"start": _kst(notice.deadline)} if notice.deadline else None},
         "사업기간": {"rich_text": _rt(_period(analysis))},
         "적합도": {"select": {"name": FIT_LABEL[fit]}},
-        "한줄 요약": {"rich_text": _rt(summary)},
+        "사업유형": {"multi_select": [{"name": t} for t in tags]},
         "제안요청서": {"files": files},
         "원문 링크": {"url": link},
         "RFP 분석": {"select": {"name": "완료" if rfp_read(analysis, doc) else "실패"}},
@@ -390,11 +396,12 @@ class NotionClient:
         return n
 
     def ensure_properties(self, database_id: str) -> list[str]:
-        """예전에 만든 표에 새로 생긴 열(예: 사업기간)이 없으면 추가한다."""
+        """예전에 만든 표에 새로 생긴 열(예: 사업기간·사업유형)을 추가하고, 없앤 열(한줄 요약)은 지운다."""
         have = set(self.get_database(database_id).get("properties", {}))
         missing = {k: v for k, v in DB_PROPERTIES.items() if k not in have}
-        if missing:
-            self._request("PATCH", f"/databases/{database_id}", json={"properties": missing})
+        obsolete = {k: None for k in REMOVED_PROPERTIES if k in have}
+        if missing or obsolete:
+            self._request("PATCH", f"/databases/{database_id}", json={"properties": {**missing, **obsolete}})
         return list(missing)
 
     def get_database(self, database_id: str) -> dict:

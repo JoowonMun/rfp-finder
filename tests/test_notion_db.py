@@ -88,16 +88,29 @@ def test_budget_none():
     assert build_properties(n, analysis(), OK_DOC, None, TODAY)["예산"]["number"] is None
 
 
-def test_long_summary_truncated():
-    p = build_properties(notice(), analysis(summary="가" * 3000), OK_DOC, None, TODAY)
-    assert len(text(p, "한줄 요약")) <= 2000
+def _tags(p):
+    return [o["name"] for o in p["사업유형"]["multi_select"]]
 
 
-def test_revised_notice_marked():
+def test_project_type_tags():
+    a = analysis()
+    a["types"] = ["AI 구축", "ISP"]
+    assert _tags(build_properties(notice(), a, OK_DOC, None, TODAY)) == ["AI 구축", "ISP"]
+    assert "한줄 요약" not in build_properties(notice(), a, OK_DOC, None, TODAY)
+
+
+def test_revised_notice_tagged():
     p = build_properties(notice(ord_="001"), analysis(), OK_DOC, None, TODAY)
-    assert text(p, "한줄 요약").startswith("[정정공고] ")
+    assert "정정공고" in _tags(p)
     p0 = build_properties(notice(ord_="000"), analysis(), OK_DOC, None, TODAY)
-    assert not text(p0, "한줄 요약").startswith("[정정공고]")
+    assert "정정공고" not in _tags(p0)
+
+
+def test_ensure_properties_removes_obsolete_summary_column():
+    existing = {**DB_PROPERTIES, "한줄 요약": {"rich_text": {}}}
+    s = FakeSession([Resp({"properties": existing}), Resp({})])
+    NotionClient("tok", session=s).ensure_properties("db1")
+    assert s.calls[1][2]["json"]["properties"] == {"한줄 요약": None}
 
 
 def _types(blocks):
@@ -370,8 +383,10 @@ def test_text_limits_count_utf16_units():
     cl = [b for b in blocks if b["type"] == "column_list"][1]
     item = cl["column_list"]["children"][0]["column"]["children"][0]["callout"]["children"][1]["bulleted_list_item"]
     assert all(_u16(r["text"]["content"]) <= 2000 for r in item["rich_text"])
-    p = build_properties(notice(), analysis(summary=wide * 1500), OK_DOC, None, TODAY)
-    assert _u16(text(p, "한줄 요약")) <= 2000
+    a = analysis()
+    a["detail"]["duration"] = wide * 1500
+    p = build_properties(notice(), a, OK_DOC, None, TODAY)
+    assert _u16(text(p, "사업기간")) <= 2000
 
 
 def test_network_error_becomes_notion_error():
@@ -490,8 +505,9 @@ def test_why_fit_and_gaps_keywords_bold():
 
 
 def test_bold_markers_stripped_from_properties():
-    p = build_properties(notice(), analysis(summary="**AI 챗봇** 구축"), OK_DOC, None, TODAY)
-    assert text(p, "한줄 요약") == "AI 챗봇 구축"
+    a = analysis()
+    a["detail"]["duration"] = "**2027년 6월**까지"
+    assert text(build_properties(notice(), a, OK_DOC, None, TODAY), "사업기간") == "2027년 6월까지"
 
 
 def test_archive_older_versions_keeps_current():
