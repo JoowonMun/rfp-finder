@@ -362,6 +362,18 @@ class NotionClient:
             self._request("PATCH", f"/pages/{row['id']}", json={"archived": True})
         return len(rows)
 
+    def archive_older_versions(self, database_id: str, bid_no: str, keep_key: str) -> int:
+        """같은 입찰번호의 다른 차수(예: 정정 전 -000) 페이지를 휴지통으로."""
+        body = {"page_size": 100, "filter": {"property": "공고번호", "rich_text": {"starts_with": f"{bid_no}-"}}}
+        rows = self._request("POST", f"/databases/{database_id}/query", json=body).get("results", [])
+        n = 0
+        for row in rows:
+            key = "".join(t.get("plain_text", "") for t in row["properties"]["공고번호"]["rich_text"])
+            if key != keep_key:
+                self._request("PATCH", f"/pages/{row['id']}", json={"archived": True})
+                n += 1
+        return n
+
     def get_database(self, database_id: str) -> dict:
         return self._request("GET", f"/databases/{database_id}")
 

@@ -107,3 +107,23 @@ def test_more_priority_hits_rank_higher_than_more_include_hits():
 
 def test_priority_keywords_default_empty():
     assert cfg().priority_keywords == []
+
+
+def _bid(no, ord_, title="AI 챗봇 구축"):
+    n = notice(title, key=f"{no}-{ord_}")
+    n.bid_no, n.bid_ord = no, ord_
+    return n
+
+
+def test_only_latest_bid_order_selected():
+    old, new = _bid("R26BK1", "000"), _bid("R26BK1", "001")
+    other = _bid("R26BK2", "000")
+    selected, overflow = select_candidates([old, new, other], set(), cfg(), NOW)
+    keys = {n.key for n in selected + overflow}
+    assert keys == {"R26BK1-001", "R26BK2-000"}
+
+
+def test_older_order_skipped_when_newer_already_in_notion():
+    old = _bid("R26BK1", "000")
+    selected, overflow = select_candidates([old], {"R26BK1-001"}, cfg(), NOW)
+    assert selected == [] and overflow == []

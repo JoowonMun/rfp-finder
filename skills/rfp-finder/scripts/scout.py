@@ -231,6 +231,11 @@ def cmd_publish(args, ctx) -> dict:
         _log(f"publish {notice.key}: 파일 첨부 실패 → 링크로 재시도")
         page = notion.create_entry(db, notice, analysis, doc, None, ctx["now"].date())
 
+    if notice.kind == "bid":  # 정정공고가 올라가면 이전 차수 행은 정리
+        old = notion.archive_older_versions(db, notice.bid_no, notice.key)
+        if old:
+            _log(f"publish {notice.key}: 이전 차수 {old}건 보관 처리")
+
     published[notice.key] = {**record, "url": page.get("url")}
     _write_json(run_dir / "published.json", published)
     _log(f"publish {notice.key}: fit={analysis['fit']} file={'upload' if upload_id else 'link'}")

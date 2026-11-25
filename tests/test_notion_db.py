@@ -492,3 +492,14 @@ def test_why_fit_and_gaps_keywords_bold():
 def test_bold_markers_stripped_from_properties():
     p = build_properties(notice(), analysis(summary="**AI 챗봇** 구축"), OK_DOC, None, TODAY)
     assert text(p, "한줄 요약") == "AI 챗봇 구축"
+
+
+def test_archive_older_versions_keeps_current():
+    s = FakeSession([
+        Resp({"results": [{"id": "p0", **_row("R1-000")}, {"id": "p1", **_row("R1-001")}]}),
+        Resp({}),
+    ])
+    n = NotionClient("tok", session=s).archive_older_versions("db1", "R1", "R1-001")
+    assert n == 1
+    assert s.calls[0][2]["json"]["filter"]["rich_text"] == {"starts_with": "R1-"}
+    assert s.calls[1][0] == "PATCH" and s.calls[1][1].endswith("/pages/p0")

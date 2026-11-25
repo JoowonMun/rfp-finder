@@ -48,10 +48,23 @@ def _priority(n: Notice, cfg: Config):
 def select_candidates(
     notices: list[Notice], existing_keys: set[str], cfg: Config, now: datetime
 ) -> tuple[list[Notice], list[Notice]]:
+    # 같은 입찰번호의 여러 차수(원공고·정정공고)는 가장 최신 차수만 남긴다.
+    # 이미 노션에 더 높은 차수가 있으면 옛 차수는 건너뛴다.
+    latest: dict[str, str] = {}
+    for k in existing_keys:
+        no, _, ord_ = k.rpartition("-")
+        if no and ord_.isdigit():
+            latest[no] = max(latest.get(no, ""), ord_)
+    for n in notices:
+        if n.kind == "bid":
+            latest[n.bid_no] = max(latest.get(n.bid_no, ""), n.bid_ord)
+
     seen: set[str] = set()
     fresh = []
     for n in notices:
         if n.key in existing_keys or n.key in seen:
+            continue
+        if n.kind == "bid" and n.bid_ord < latest.get(n.bid_no, ""):
             continue
         seen.add(n.key)
         if passes(n, cfg, now):

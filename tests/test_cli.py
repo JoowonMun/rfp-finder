@@ -57,6 +57,12 @@ class FakeNotion:
         self.existing.discard(key)
         return 1
 
+    def archive_older_versions(self, db, bid_no, keep_key):
+        old = sorted(k for k in self.existing if k.startswith(bid_no + "-") and k != keep_key)
+        self.archived_old = getattr(self, "archived_old", []) + old
+        self.existing -= set(old)
+        return len(old)
+
     def upload_file(self, path, max_mb):
         self.uploads.append(path)
         return "upl-1"
@@ -293,3 +299,12 @@ def test_publish_replace_fit0_archives_and_excludes(home, capsys):
     _set_fit(run_dir, 0)
     code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1", "--replace"], notion=notion)
     assert out["status"] == "excluded" and notion.archived == ["B1"] and notion.created == []
+
+
+def test_publish_archives_older_versions_of_same_bid(home, capsys):
+    notion = FakeNotion()
+    run_dir = _prepare_run(home, capsys, notion)
+    notion.existing.add("B1-000")  # 같은 입찰번호의 이전 차수
+    code, out = run(capsys, ["publish", "--run", run_dir, "--key", "B1"], notion=notion)
+    assert out["status"] == "created"
+    assert notion.archived_old == ["B1-000"] and "B1-000" not in notion.existing
