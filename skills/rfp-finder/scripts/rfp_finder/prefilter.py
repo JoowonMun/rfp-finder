@@ -39,8 +39,10 @@ def passes(notice: Notice, cfg: Config, now: datetime) -> bool:
 def _priority(n: Notice, cfg: Config):
     has_exclude = keyword_hits(n, cfg.exclude_keywords) > 0
     deadline = n.deadline or datetime.max
-    has_priority = keyword_hits(n, cfg.priority_keywords) > 0
-    return (not has_priority, has_exclude, -keyword_hits(n, cfg.include_keywords), n.deadline is None, deadline)
+    # 우선 키워드를 '몇 개' 맞췄는지가 먼저. 포함 키워드 개수는 그다음
+    # (포함 개수를 먼저 보면 "AI 전환(AX) ISP"처럼 키워드가 몰린 제목이 늘 앞섬)
+    priority_hits = keyword_hits(n, cfg.priority_keywords)
+    return (-priority_hits, has_exclude, -keyword_hits(n, cfg.include_keywords), n.deadline is None, deadline)
 
 
 def select_candidates(

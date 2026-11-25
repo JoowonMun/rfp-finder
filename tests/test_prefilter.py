@@ -97,5 +97,13 @@ def test_priority_keywords_go_first():
     assert [n.key for n in selected] == ["consult", "many"]
 
 
+def test_more_priority_hits_rank_higher_than_more_include_hits():
+    c = cfg(include_keywords=["AI", "AX", "ISP", "데이터"], priority_keywords=["구축", "개발", "플랫폼", "ISP"])
+    isp = notice("AI 전환(AX) ISP 데이터 수립", key="isp", days=6)          # 우선 1개, 포함 4개
+    build = notice("AI 에이전트 플랫폼 구축", key="build", days=40)         # 우선 2개, 포함 1개
+    selected, _ = select_candidates([isp, build], set(), c, NOW)
+    assert [n.key for n in selected] == ["build", "isp"]
+
+
 def test_priority_keywords_default_empty():
     assert cfg().priority_keywords == []
