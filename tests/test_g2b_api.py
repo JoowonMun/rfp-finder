@@ -39,6 +39,7 @@ def test_parse_prespec_from_fixture():
     assert n.budget_krw == 1119000000
     assert n.deadline == datetime(2026, 11, 20, 10, 0)
     assert len(n.attachments) == 2
+    assert n.detail_url == "https://www.g2b.go.kr/link/PRVA004_02/single/?bfSpecRegNo=R26BD00301277"
 
 
 def test_parse_items_handles_empty_and_single():

@@ -78,6 +78,14 @@ def parse_bid(item: dict) -> Notice:
     )
 
 
+PRESPEC_URL = "https://www.g2b.go.kr/link/PRVA004_02/single/?bfSpecRegNo={no}"
+
+
+def prespec_url(reg_no: str) -> str:
+    """사전규격 상세 화면 주소. API 응답에는 없어서 등록번호로 만든다(본공고 링크와 같은 /single/ 형식)."""
+    return PRESPEC_URL.format(no=reg_no) if reg_no else ""
+
+
 def parse_prespec(item: dict) -> Notice:
     no = str(item.get("bfSpecRgstNo", "")).strip()
     atts = []
@@ -97,7 +105,7 @@ def parse_prespec(item: dict) -> Notice:
         deadline=_dt(item.get("opninRgstClseDt")),
         posted_at=_dt(item.get("rcptDt") or item.get("rgstDt")),
         category=(item.get("bsnsDivNm") or "").strip(),
-        detail_url="",
+        detail_url=prespec_url(no),
         attachments=atts,
     )
 
